@@ -4,56 +4,6 @@
  */
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
-const deployedContracts = {
-  412346: {
-    "stylus-hello-world": {
-      address: "0x3df948c956e14175f43670407d5796b95bb219d8",
-      abi: [
-        {
-          inputs: [],
-          name: "addFromMsgValue",
-          outputs: [],
-          stateMutability: "payable",
-          type: "function",
-        },
-        {
-          inputs: [{ internalType: "uint256", name: "new_number", type: "uint256" }],
-          name: "addNumber",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "increment",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [{ internalType: "uint256", name: "new_number", type: "uint256" }],
-          name: "mulNumber",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "number",
-          outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [{ internalType: "uint256", name: "new_number", type: "uint256" }],
-          name: "setNumber",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-      ],
-    },
-  },
-} as const;
+const deployedContracts = {} as const;
 
 export default deployedContracts satisfies GenericContractsDeclaration;
