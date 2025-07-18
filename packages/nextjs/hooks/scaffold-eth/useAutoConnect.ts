@@ -1,4 +1,5 @@
-import { useEffectOnce, useLocalStorage, useReadLocalStorage } from "usehooks-ts";
+import { useEffect } from "react";
+import { useLocalStorage, useReadLocalStorage } from "usehooks-ts";
 import { Chain } from "viem/chains";
 import { Connector, useAccount, useConnect } from "wagmi";
 import scaffoldConfig from "~~/scaffold.config";
@@ -63,21 +64,26 @@ export const useAutoConnect = (): void => {
     initializeWithValue: false,
   });
   const connectState = useConnect();
-  useAccount({
-    onConnect({ connector }) {
-      setWalletId(connector?.id ?? "");
-    },
-    onDisconnect() {
+  const { isConnected, connector } = useAccount();
+
+  useEffect(() => {
+    if (isConnected && connector) {
+      setWalletId(connector.id ?? "");
+    } else if (!isConnected) {
       window.localStorage.setItem(WAGMI_WALLET_STORAGE_KEY, JSON.stringify(""));
       setWalletId("");
-    },
-  });
+    }
+  }, [isConnected, connector]);
 
-  useEffectOnce(() => {
-    const initialConnector = getInitialConnector(getTargetNetworks()[0], walletId, connectState.connectors);
+  useEffect(() => {
+    const initialConnector = getInitialConnector(
+      getTargetNetworks()[0],
+      walletId,
+      connectState.connectors as Connector[],
+    );
 
     if (initialConnector?.connector) {
       connectState.connect({ connector: initialConnector.connector, chainId: initialConnector.chainId });
     }
-  });
+  }, []);
 };
