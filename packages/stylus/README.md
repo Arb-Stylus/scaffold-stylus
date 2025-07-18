@@ -23,7 +23,7 @@ contract Counter {
 
 To set up more minimal example that still uses the Stylus SDK, use `cargo stylus new --minimal <YOUR_PROJECT_NAME>` under [OffchainLabs/cargo-stylus](https://github.com/OffchainLabs/cargo-stylus).
 
-## Quick Start 
+## Quick Start
 
 Install [Rust](https://www.rust-lang.org/tools/install), and then install the Stylus CLI tool with Cargo
 
@@ -127,7 +127,6 @@ Estimated gas for deployment: 1874876
 
 The above only estimates gas for the deployment tx by default. To estimate gas for activation, first deploy your program using `--mode=deploy-only`, and then run `cargo stylus deploy` with the `--estimate-gas` flag, `--mode=activate-only`, and specify `--activate-program-address`.
 
-
 Here's how to deploy:
 
 ```bash
@@ -164,7 +163,7 @@ Instead of setting `RPC_URL` in your environment, you can use the `NETWORK` envi
 NETWORK=arbitrum yarn deploy
 NETWORK=mainnet yarn deploy  # alias for arbitrum
 
-# Deploy to Arbitrum Sepolia testnet  
+# Deploy to Arbitrum Sepolia testnet
 NETWORK=arbitrumSepolia yarn deploy
 NETWORK=testnet yarn deploy  # alias for arbitrumSepolia
 ```
@@ -182,6 +181,7 @@ This will show you all supported networks and their corresponding RPC endpoints.
 ### Fallback Behavior
 
 If a network name is not supported (only `arbitrum`, `arbitrumSepolia`, `mainnet`, and `testnet` are supported), the system will:
+
 1. Show a warning message indicating the network isn't supported
 2. Fall back to the `RPC_URL` environment variable (or default to `http://localhost:8547`)
 3. Continue with deployment using the fallback endpoint

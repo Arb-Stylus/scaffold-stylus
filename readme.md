@@ -2,7 +2,7 @@
 
 <h4 align="center">
   <a href="">Documentation</a> |
-  <a href="https://drone-cure-43592424.figma.site/">Website</a>
+  <a href="https://www.scaffoldstylus.com/">Website</a>
 </h4>
 
 🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Arbitrum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
@@ -115,7 +115,7 @@ To deploy your contracts to a different network (other than the default local Ni
 
 ## Documentation
 
-Visit our [docs](#) to learn how to start building with Scaffold-Stylus.
+Visit our [docs](https://arb-stylus.github.io/scaffold-stylus-docs/) to learn how to start building with Scaffold-Stylus.
 
 To know more about its features, check out our [website](https://drone-cure-43592424.figma.site).
 
