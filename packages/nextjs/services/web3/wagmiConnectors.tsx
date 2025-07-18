@@ -1,6 +1,5 @@
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import {
-  braveWallet,
   coinbaseWallet,
   ledgerWallet,
   metaMaskWallet,
@@ -8,61 +7,39 @@ import {
   safeWallet,
   walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
+import { rainbowkitBurnerWallet } from "burner-connector";
 import * as chains from "viem/chains";
-import { configureChains } from "wagmi";
-import { alchemyProvider } from "wagmi/providers/alchemy";
-import { publicProvider } from "wagmi/providers/public";
-import scaffoldConfig from "~~/scaffold.config";
 import { arbitrumNitro } from "~~/utils/chain";
-import { getTargetNetworks } from "~~/utils/scaffold-eth";
 
-const targetNetworks = getTargetNetworks();
+import scaffoldConfig from "~~/scaffold.config";
 
-// We always want to have mainnet enabled (ENS resolution, ETH price, etc). But only once.
-const enabledChains = targetNetworks.find(network => network.id === 1)
-  ? targetNetworks
-  : [...targetNetworks, chains.mainnet];
+const { onlyLocalBurnerWallet, targetNetworks } = scaffoldConfig;
 
-/**
- * Chains for the app
- */
-export const appChains = configureChains(
-  enabledChains,
-  [
-    alchemyProvider({
-      apiKey: scaffoldConfig.alchemyApiKey,
-    }),
-    publicProvider(),
-  ],
-  {
-    // We might not need this checkout https://github.com/scaffold-eth/scaffold-eth-2/pull/45#discussion_r1024496359, will test and remove this before merging
-    stallTimeout: 3_000,
-    // Sets pollingInterval if using chains other than local hardhat chain
-    ...(targetNetworks.find(network => network.id !== arbitrumNitro.id)
-      ? {
-          pollingInterval: scaffoldConfig.pollingInterval,
-        }
-      : {}),
-  },
-);
-
-const walletsOptions = { chains: appChains.chains, projectId: scaffoldConfig.walletConnectProjectId };
 const wallets = [
-  metaMaskWallet({ ...walletsOptions, shimDisconnect: true }),
-  walletConnectWallet(walletsOptions),
-  ledgerWallet(walletsOptions),
-  braveWallet(walletsOptions),
-  coinbaseWallet({ ...walletsOptions, appName: "scaffold-stylus" }),
-  rainbowWallet(walletsOptions),
-  safeWallet({ ...walletsOptions }),
+  metaMaskWallet,
+  walletConnectWallet,
+  ledgerWallet,
+  coinbaseWallet,
+  rainbowWallet,
+  safeWallet,
+  ...(!targetNetworks.some(network => network.id !== (arbitrumNitro as chains.Chain).id) || !onlyLocalBurnerWallet
+    ? [rainbowkitBurnerWallet]
+    : []),
 ];
 
 /**
  * wagmi connectors for the wagmi context
  */
-export const wagmiConnectors = connectorsForWallets([
+export const wagmiConnectors = connectorsForWallets(
+  [
+    {
+      groupName: "Supported Wallets",
+      wallets,
+    },
+  ],
+
   {
-    groupName: "Supported Wallets",
-    wallets,
+    appName: "scaffold-eth-2",
+    projectId: scaffoldConfig.walletConnectProjectId,
   },
-]);
+);
