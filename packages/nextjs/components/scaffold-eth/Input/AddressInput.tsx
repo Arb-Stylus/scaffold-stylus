@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { blo } from "blo";
 import { useDebounceValue } from "usehooks-ts";
 import { Address, isAddress } from "viem";
+import { normalize } from "viem/ens";
 import { useEnsAddress, useEnsAvatar, useEnsName } from "wagmi";
 import { CommonInputProps, InputBase, isENS } from "~~/components/scaffold-eth";
 
@@ -25,9 +26,11 @@ export const AddressInput = ({ value, name, placeholder, onChange, disabled }: C
     isSuccess: isEnsAddressSuccess,
   } = useEnsAddress({
     name: settledValue,
-    enabled: isDebouncedValueLive && isENS(debouncedValue),
     chainId: 1,
-    cacheTime: 30_000,
+    query: {
+      gcTime: 30_000,
+      enabled: isDebouncedValueLive && isENS(debouncedValue),
+    },
   });
 
   const [enteredEnsName, setEnteredEnsName] = useState<string>();
@@ -38,16 +41,20 @@ export const AddressInput = ({ value, name, placeholder, onChange, disabled }: C
     isSuccess: isEnsNameSuccess,
   } = useEnsName({
     address: settledValue as Address,
-    enabled: isAddress(debouncedValue),
     chainId: 1,
-    cacheTime: 30_000,
+    query: {
+      enabled: isAddress(debouncedValue),
+      gcTime: 30_000,
+    },
   });
 
-  const { data: ensAvatar, isLoading: isEnsAvtarLoading } = useEnsAvatar({
-    name: ensName,
-    enabled: Boolean(ensName),
+  const { data: ensAvatar, isLoading: isEnsAvatarLoading } = useEnsAvatar({
+    name: ensName ? normalize(ensName) : undefined,
     chainId: 1,
-    cacheTime: 30_000,
+    query: {
+      enabled: Boolean(ensName),
+      gcTime: 30_000,
+    },
   });
 
   // ens => address
@@ -59,13 +66,9 @@ export const AddressInput = ({ value, name, placeholder, onChange, disabled }: C
     onChange(ensAddress);
   }, [ensAddress, onChange, debouncedValue]);
 
-  const handleChange = useCallback(
-    (newValue: Address) => {
-      setEnteredEnsName(undefined);
-      onChange(newValue);
-    },
-    [onChange],
-  );
+  useEffect(() => {
+    setEnteredEnsName(undefined);
+  }, [value]);
 
   const reFocus =
     isEnsAddressError ||
@@ -81,13 +84,13 @@ export const AddressInput = ({ value, name, placeholder, onChange, disabled }: C
       placeholder={placeholder}
       error={ensAddress === null}
       value={value as Address}
-      onChange={handleChange}
+      onChange={onChange}
       disabled={isEnsAddressLoading || isEnsNameLoading || disabled}
       reFocus={reFocus}
       prefix={
         ensName ? (
           <div className="flex bg-base-300 rounded-l-full items-center">
-            {isEnsAvtarLoading && <div className="skeleton bg-base-200 w-[35px] h-[35px] rounded-full shrink-0"></div>}
+            {isEnsAvatarLoading && <div className="skeleton bg-base-200 w-[35px] h-[35px] rounded-full shrink-0"></div>}
             {ensAvatar ? (
               <span className="w-[35px]">
                 {
@@ -110,7 +113,7 @@ export const AddressInput = ({ value, name, placeholder, onChange, disabled }: C
       suffix={
         // Don't want to use nextJS Image here (and adding remote patterns for the URL)
         // eslint-disable-next-line @next/next/no-img-element
-        value && <img alt="" className="!rounded-full" src={blo(value as `0x${string}`)} width="35" height="35" />
+        value && <img alt="" className="rounded-full!" src={blo(value as `0x${string}`)} width="35" height="35" />
       }
     />
   );

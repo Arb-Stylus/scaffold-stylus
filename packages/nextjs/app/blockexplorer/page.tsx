@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PaginationButton, TransactionsTable } from "./_components";
+import { PaginationButton, SearchBar, TransactionsTable } from "./_components";
 import type { NextPage } from "next";
 import { useFetchBlocks } from "~~/hooks/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
@@ -31,7 +31,7 @@ const BlockExplorer: NextPage = () => {
       notification.error(
         <>
           <p className="font-bold mt-0 mb-1">
-            <code className="italic bg-base-300 text-base font-bold"> targeNetwork </code> is not localhost
+            <code className="italic bg-base-300 text-base font-bold"> targetNetwork </code> is not localhost
           </p>
           <p className="m-0">
             - You are on <code className="italic bg-base-300 text-base font-bold">{targetNetwork.name}</code> .This
@@ -73,7 +73,7 @@ const BlockExplorer: NextPage = () => {
 
   return (
     <div className="container mx-auto my-10">
-      {/* <SearchBar /> */}
+      <SearchBar />
       <TransactionsTable blocks={blocks} transactionReceipts={transactionReceipts} />
       <PaginationButton currentPage={currentPage} totalItems={Number(totalBlocks)} setCurrentPage={setCurrentPage} />
     </div>

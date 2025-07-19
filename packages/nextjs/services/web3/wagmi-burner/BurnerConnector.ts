@@ -1,7 +1,7 @@
 import { StaticJsonRpcProvider } from "@ethersproject/providers";
 import { Address, Chain, HttpTransport, PrivateKeyAccount, WalletClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { Connector } from "wagmi";
+import { EventEmitter } from "events";
 import { loadBurnerSK } from "~~/hooks/scaffold-eth";
 import { BurnerConnectorError, BurnerConnectorErrorList } from "~~/services/web3/wagmi-burner/BurnerConnectorErrors";
 import { BurnerConnectorData, BurnerConnectorOptions } from "~~/services/web3/wagmi-burner/BurnerConnectorTypes";
@@ -12,10 +12,12 @@ export const burnerWalletName = "Burner Wallet";
 /**
  * This class is a wagmi connector for BurnerWallet.  Its used by {@link burnerWalletConfig}
  */
-export class BurnerConnector extends Connector<StaticJsonRpcProvider, BurnerConnectorOptions> {
+export class BurnerConnector extends EventEmitter {
   readonly id = burnerWalletId;
   readonly name = burnerWalletName;
   readonly ready = true;
+  readonly chains: Chain[];
+  readonly options: BurnerConnectorOptions;
 
   private provider?: StaticJsonRpcProvider;
 
@@ -23,7 +25,9 @@ export class BurnerConnector extends Connector<StaticJsonRpcProvider, BurnerConn
   private burnerWallet: WalletClient<HttpTransport, Chain, PrivateKeyAccount> | undefined;
 
   constructor(config: { chains?: Chain[]; options: BurnerConnectorOptions }) {
-    super(config);
+    super();
+    this.chains = config.chains || [];
+    this.options = config.options;
     this.burnerWallet = undefined;
   }
 

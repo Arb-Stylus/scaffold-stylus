@@ -6,7 +6,7 @@ import { AddressLogsTab } from "./AddressLogsTab";
 import { AddressStorageTab } from "./AddressStorageTab";
 import { PaginationButton } from "./PaginationButton";
 import { TransactionsTable } from "./TransactionsTable";
-import { createPublicClient, http } from "viem";
+import { Address, createPublicClient, http } from "viem";
 import { hardhat } from "viem/chains";
 import { useFetchBlocks } from "~~/hooks/scaffold-eth";
 
@@ -16,7 +16,7 @@ type AddressCodeTabProps = {
 };
 
 type PageProps = {
-  address: string;
+  address: Address;
   contractData: AddressCodeTabProps | null;
 };
 
@@ -51,23 +51,33 @@ export const ContractTabs = ({ address, contractData }: PageProps) => {
   return (
     <>
       {isContract && (
-        <div className="tabs tabs-lifted w-min">
+        <div role="tablist" className="tabs tabs-lift">
           <button
+            role="tab"
             className={`tab ${activeTab === "transactions" ? "tab-active" : ""}`}
             onClick={() => setActiveTab("transactions")}
           >
             Transactions
           </button>
-          <button className={`tab ${activeTab === "code" ? "tab-active" : ""}`} onClick={() => setActiveTab("code")}>
+          <button
+            role="tab"
+            className={`tab ${activeTab === "code" ? "tab-active" : ""}`}
+            onClick={() => setActiveTab("code")}
+          >
             Code
           </button>
           <button
+            role="tab"
             className={`tab  ${activeTab === "storage" ? "tab-active" : ""}`}
             onClick={() => setActiveTab("storage")}
           >
             Storage
           </button>
-          <button className={`tab  ${activeTab === "logs" ? "tab-active" : ""}`} onClick={() => setActiveTab("logs")}>
+          <button
+            role="tab"
+            className={`tab  ${activeTab === "logs" ? "tab-active" : ""}`}
+            onClick={() => setActiveTab("logs")}
+          >
             Logs
           </button>
         </div>

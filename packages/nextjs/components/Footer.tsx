@@ -13,7 +13,7 @@ import { arbitrumNitro } from "~~/utils/chain";
  * Site footer
  */
 export const Footer = () => {
-  const nativeCurrencyPrice = useGlobalState(state => state.nativeCurrencyPrice);
+  const nativeCurrencyPrice = useGlobalState(state => state.nativeCurrency.price);
   const { targetNetwork } = useTargetNetwork();
   const { resolvedTheme } = useTheme();
   const isLocalNetwork = targetNetwork.id === arbitrumNitro.id;
@@ -36,7 +36,7 @@ export const Footer = () => {
               <div>
                 <div className="btn btn-sm font-normal gap-1 cursor-auto border-round-color bg-base-100">
                   <CurrencyDollarIcon className="h-4 w-4 stroke-[#E3066E]" />
-                  <span>{nativeCurrencyPrice}</span>
+                  <span>{nativeCurrencyPrice.toFixed(2)}</span>
                 </div>
               </div>
             )}

@@ -13,7 +13,7 @@ import { useConnect } from "wagmi";
 import { useAutoConnect, useNetworkColor } from "~~/hooks/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 import scaffoldConfig from "~~/scaffold.config";
-import { burnerWalletConfig } from "~~/services/web3/wagmi-burner/burnerWalletConfig";
+import { BurnerConnector } from "~~/services/web3/wagmi-burner/BurnerConnector";
 import { arbitrumNitro } from "~~/utils/chain";
 import { getTargetNetworks } from "~~/utils/scaffold-eth";
 
@@ -30,13 +30,15 @@ export const RainbowKitCustomConnectButton = () => {
 
   const handleBurnerWalletSelect = async (privateKey: string) => {
     try {
-      const burnerWallet = burnerWalletConfig({
+      const connector = new BurnerConnector({
         chains: targetNetworks,
-        privateKey: privateKey as `0x${string}`,
+        options: {
+          defaultChainId: targetNetworks[0].id,
+          privateKey: privateKey,
+        },
       });
 
-      const connector = burnerWallet.createConnector().connector;
-      await connectAsync({ connector });
+      await connectAsync({ connector: connector as any });
     } catch (error) {
       console.error("Failed to connect to burner wallet:", error);
     }

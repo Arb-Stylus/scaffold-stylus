@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { NetworkOptions } from "./NetworkOptions";
-import CopyToClipboard from "react-copy-to-clipboard";
 import { getAddress } from "viem";
-import { Address, useDisconnect } from "wagmi";
+import { Address } from "viem";
+import { useDisconnect } from "wagmi";
 import {
   ArrowLeftEndOnRectangleIcon,
   ArrowsRightLeftIcon,
@@ -12,8 +12,8 @@ import {
   QrCodeIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
-import { isENS } from "~~/components/scaffold-eth";
-import { useOutsideClick } from "~~/hooks/scaffold-eth";
+import { BlockieAvatar, isENS } from "~~/components/scaffold-eth";
+import { useCopyToClipboard, useOutsideClick } from "~~/hooks/scaffold-eth";
 import { arbitrumNitro } from "~~/utils/chain";
 import { getTargetNetworks } from "~~/utils/scaffold-eth";
 
@@ -28,20 +28,23 @@ type AddressInfoDropdownProps = {
 
 export const AddressInfoDropdown = ({
   address,
-  // ensAvatar,
+  ensAvatar,
   displayName,
   onSwitchAccount,
 }: AddressInfoDropdownProps) => {
   const { disconnect } = useDisconnect();
   const checkSumAddress = getAddress(address);
-  const [addressCopied, setAddressCopied] = useState(false);
 
+  const { copyToClipboard: copyAddressToClipboard, isCopiedToClipboard: isAddressCopiedToClipboard } =
+    useCopyToClipboard();
   const [selectingNetwork, setSelectingNetwork] = useState(false);
   const dropdownRef = useRef<HTMLDetailsElement>(null);
+
   const closeDropdown = () => {
     setSelectingNetwork(false);
     dropdownRef.current?.removeAttribute("open");
   };
+
   useOutsideClick(dropdownRef, closeDropdown);
 
   return (
@@ -51,8 +54,8 @@ export const AddressInfoDropdown = ({
           tabIndex={0}
           className="bg-base-100 rounded-full flex items-center px-4 py-2 shadow-md dropdown-toggle gap-0 !h-auto"
         >
-          {/* <BlockieAvatar address={checkSumAddress} size={30} ensImage={ensAvatar} /> */}
-          <span className="ml-2 mr-1 font-bold">
+          <BlockieAvatar address={checkSumAddress} size={30} ensImage={ensAvatar} />
+          <span className="ml-2 mr-1">
             {isENS(displayName) ? displayName : checkSumAddress?.slice(0, 6) + "..." + checkSumAddress?.slice(-4)}
           </span>
           <ChevronDownIcon className="h-6 w-4 ml-2 sm:ml-0" />
@@ -63,52 +66,41 @@ export const AddressInfoDropdown = ({
         >
           <NetworkOptions hidden={!selectingNetwork} />
           <li className={selectingNetwork ? "hidden" : ""}>
-            {addressCopied ? (
-              <div className="btn-sm !rounded-xl flex gap-3 py-3">
-                <CheckCircleIcon
-                  className="text-xl font-normal h-6 w-4 cursor-pointer ml-2 sm:ml-0"
-                  aria-hidden="true"
-                />
-                <span className=" whitespace-nowrap">Copy address</span>
-              </div>
-            ) : (
-              <CopyToClipboard
-                text={checkSumAddress}
-                onCopy={() => {
-                  setAddressCopied(true);
-                  setTimeout(() => {
-                    setAddressCopied(false);
-                  }, 800);
-                }}
-              >
-                <div className="btn-sm !rounded-xl flex gap-3 py-3">
-                  <DocumentDuplicateIcon
-                    className="text-xl font-normal h-6 w-4 cursor-pointer ml-2 sm:ml-0"
-                    aria-hidden="true"
-                  />
-                  <span className=" whitespace-nowrap">Copy address</span>
-                </div>
-              </CopyToClipboard>
-            )}
+            <div
+              className="h-8 btn-sm rounded-xl! flex gap-3 py-3 cursor-pointer"
+              onClick={() => copyAddressToClipboard(checkSumAddress)}
+            >
+              {isAddressCopiedToClipboard ? (
+                <>
+                  <CheckCircleIcon className="text-xl font-normal h-6 w-4 ml-2 sm:ml-0" aria-hidden="true" />
+                  <span className="whitespace-nowrap">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <DocumentDuplicateIcon className="text-xl font-normal h-6 w-4 ml-2 sm:ml-0" aria-hidden="true" />
+                  <span className="whitespace-nowrap">Copy address</span>
+                </>
+              )}
+            </div>
           </li>
           <li className={selectingNetwork ? "hidden" : ""}>
-            <label htmlFor="qrcode-modal" className="btn-sm !rounded-xl flex gap-3 py-3">
+            <label htmlFor="qrcode-modal" className="h-8 btn-sm rounded-xl! flex gap-3 py-3">
               <QrCodeIcon className="h-6 w-4 ml-2 sm:ml-0" />
               <span className="whitespace-nowrap">View QR Code</span>
             </label>
           </li>
           {allowedNetworks.some(network => network.id === arbitrumNitro.id) && (
-            <li className={selectingNetwork ? "hidden" : ""}>
+          <li className={selectingNetwork ? "hidden" : ""}>
               <button className="menu-item btn-sm !rounded-xl flex gap-3 py-3" type="button" onClick={onSwitchAccount}>
-                <UserCircleIcon className="h-6 w-4 ml-2 sm:ml-0" />
+              <UserCircleIcon className="h-6 w-4 ml-2 sm:ml-0" />
                 <span className="whitespace-nowrap">Switch account</span>
-              </button>
-            </li>
+            </button>
+          </li>
           )}
           {allowedNetworks.length > 1 ? (
             <li className={selectingNetwork ? "hidden" : ""}>
               <button
-                className="btn-sm !rounded-xl flex gap-3 py-3"
+                className="h-8 btn-sm rounded-xl! flex gap-3 py-3"
                 type="button"
                 onClick={() => {
                   setSelectingNetwork(true);
@@ -120,7 +112,7 @@ export const AddressInfoDropdown = ({
           ) : null}
           <li className={selectingNetwork ? "hidden" : ""}>
             <button
-              className="menu-item text-[#E3066E] font-bold btn-sm !rounded-xl flex gap-3 py-3"
+              className="menu-item text-error h-8 btn-sm rounded-xl! flex gap-3 py-3"
               type="button"
               onClick={() => disconnect()}
             >

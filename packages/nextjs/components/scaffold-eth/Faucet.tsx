@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Address as AddressType, createWalletClient, http, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { useNetwork } from "wagmi";
+import { useAccount } from "wagmi";
 import { BanknotesIcon } from "@heroicons/react/24/outline";
 import { Address, AddressInput, Balance, EtherInput } from "~~/components/scaffold-eth";
 import { useTransactor } from "~~/hooks/scaffold-eth";
+import { notification } from "~~/utils/scaffold-eth";
 import { arbitrumNitro } from "~~/utils/chain";
+
+
+// Account index to use from generated hardhat accounts.
+const FAUCET_ACCOUNT_INDEX = 0;
 
 const localWalletClient = createWalletClient({
   account: privateKeyToAccount(arbitrumNitro.accounts[0].privateKey),
@@ -21,23 +26,47 @@ const localWalletClient = createWalletClient({
 export const Faucet = () => {
   const [loading, setLoading] = useState(false);
   const [inputAddress, setInputAddress] = useState<AddressType>();
-  const [faucetAddress] = useState<AddressType>(arbitrumNitro.accounts[0].address);
+  const [faucetAddress, setFaucetAddress] = useState<AddressType>(arbitrumNitro.accounts[0].address);
   const [sendValue, setSendValue] = useState("");
 
-  const { chain: ConnectedChain } = useNetwork();
+  const { chain: ConnectedChain } = useAccount();
 
   const faucetTxn = useTransactor(localWalletClient);
 
+  useEffect(() => {
+    const getFaucetAddress = async () => {
+      try {
+        const accounts = await localWalletClient.getAddresses();
+        setFaucetAddress(accounts[FAUCET_ACCOUNT_INDEX]);
+      } catch (error) {
+        notification.error(
+          <>
+            <p className="font-bold mt-0 mb-1">Cannot connect to local provider</p>
+            <p className="m-0">
+              - Did you forget to run <code className="italic bg-base-300 text-base font-bold">yarn chain</code> ?
+            </p>
+            <p className="mt-1 break-normal">
+              - Or you can change <code className="italic bg-base-300 text-base font-bold">targetNetwork</code> in{" "}
+              <code className="italic bg-base-300 text-base font-bold">scaffold.config.ts</code>
+            </p>
+          </>,
+        );
+        console.error("⚡️ ~ file: Faucet.tsx:getFaucetAddress ~ error", error);
+      }
+    };
+    getFaucetAddress();
+  }, []);
+
   const sendETH = async () => {
-    if (!faucetAddress) {
+    if (!faucetAddress || !inputAddress) {
       return;
     }
     try {
       setLoading(true);
-      // @ts-ignore
       await faucetTxn({
         to: inputAddress,
         value: parseEther(sendValue as `${number}`),
+        account: faucetAddress,
       });
       setLoading(false);
       setInputAddress(undefined);
@@ -55,8 +84,8 @@ export const Faucet = () => {
 
   return (
     <div>
-      <label htmlFor="faucet-modal" className="btn btn-sm font-normal gap-1 border-round-color bg-base-100">
-        <BanknotesIcon className="h-4 w-4 stroke-[#E3066E]" />
+      <label htmlFor="faucet-modal" className="btn btn-primary btn-sm font-normal gap-1">
+        <BanknotesIcon className="h-4 w-4" />
         <span>Faucet</span>
       </label>
       <input type="checkbox" id="faucet-modal" className="modal-toggle" />
@@ -72,7 +101,7 @@ export const Faucet = () => {
             <div className="flex space-x-4">
               <div>
                 <span className="text-sm font-bold">From:</span>
-                <Address address={faucetAddress} />
+                <Address address={faucetAddress} onlyEnsOrAddress />
               </div>
               <div>
                 <span className="text-sm font-bold pl-3">Available:</span>

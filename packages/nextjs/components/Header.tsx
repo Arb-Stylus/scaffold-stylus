@@ -7,8 +7,7 @@ import { usePathname } from "next/navigation";
 import { SwitchTheme } from "./SwitchTheme";
 import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
-import { useOutsideClick } from "~~/hooks/scaffold-eth";
-import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
+import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";
 import { arbitrumNitro } from "~~/utils/chain";
 
 type HeaderMenuLink = {
@@ -87,10 +86,10 @@ export const Header = () => {
               className="menu menu-compact dropdown-content mt-3 p-2 shadow bg-base-100 rounded-box w-52"
               onClick={() => {
                 setIsDrawerOpen(false);
-              }}
-            >
-              <HeaderMenuLinks />
-            </ul>
+            }}
+          >
+            <HeaderMenuLinks />
+          </ul>
           )}
         </div>
         <Link href="/" passHref className="hidden lg:flex items-center gap-2 ml-4 mr-6 shrink-0">
