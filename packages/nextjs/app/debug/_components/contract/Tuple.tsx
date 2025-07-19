@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ContractInput } from "./ContractInput";
-import { getFunctionInputKey, getInitalTupleFormState } from "./utilsContract";
+import { getFunctionInputKey, getInitialTupleFormState } from "./utilsContract";
 import { replacer } from "~~/utils/scaffold-eth/common";
 import { AbiParameterTuple } from "~~/utils/scaffold-eth/contract";
 
@@ -12,7 +12,7 @@ type TupleProps = {
 };
 
 export const Tuple = ({ abiTupleParameter, setParentForm, parentStateObjectKey }: TupleProps) => {
-  const [form, setForm] = useState<Record<string, any>>(() => getInitalTupleFormState(abiTupleParameter));
+  const [form, setForm] = useState<Record<string, any>>(() => getInitialTupleFormState(abiTupleParameter));
 
   useEffect(() => {
     const values = Object.values(form);
@@ -27,9 +27,9 @@ export const Tuple = ({ abiTupleParameter, setParentForm, parentStateObjectKey }
 
   return (
     <div>
-      <div className="collapse collapse-arrow bg-base-200 pl-4 py-1.5 border-2 border-secondary">
-        <input type="checkbox" className="min-h-fit peer" />
-        <div className="collapse-title p-0 min-h-fit peer-checked:mb-2 text-primary-content/50">
+      <div tabIndex={0} className="collapse collapse-arrow bg-base-200 pl-4 py-1.5 border-2 border-secondary">
+        <input type="checkbox" className="min-h-fit! peer" />
+        <div className="collapse-title after:top-3.5! p-0 min-h-fit! peer-checked:mb-2 text-primary-content/50">
           <p className="m-0 p-0 text-[1rem]">{abiTupleParameter.internalType}</p>
         </div>
         <div className="ml-3 flex-col space-y-4 border-secondary/80 border-l-2 pl-4 collapse-content">

@@ -13,6 +13,18 @@ const isJsonString = (str: string) => {
   try {
     JSON.parse(str);
     return true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (e) {
+    return false;
+  }
+};
+
+const isBigInt = (str: string) => {
+  if (str.trim().length === 0 || str.startsWith("0")) return false;
+  try {
+    BigInt(str);
+    return true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
     return false;
   }
@@ -21,13 +33,18 @@ const isJsonString = (str: string) => {
 // Recursive function to deeply parse JSON strings, correctly handling nested arrays and encoded JSON strings
 const deepParseValues = (value: any): any => {
   if (typeof value === "string") {
+    // first try with bigInt because we losse precision with JSON.parse
+    if (isBigInt(value)) {
+      return BigInt(value);
+    }
+
     if (isJsonString(value)) {
       const parsed = JSON.parse(value);
       return deepParseValues(parsed);
-    } else {
-      // It's a string but not a JSON string, return as is
-      return value;
     }
+
+    // It's a string but not a JSON string, return as is
+    return value;
   } else if (Array.isArray(value)) {
     // If it's an array, recursively parse each element
     return value.map(element => deepParseValues(element));
@@ -71,7 +88,7 @@ const getInitialFormState = (abiFunction: AbiFunction) => {
   return initialForm;
 };
 
-const getInitalTupleFormState = (abiTupleParameter: AbiParameterTuple) => {
+const getInitialTupleFormState = (abiTupleParameter: AbiParameterTuple) => {
   const initialForm: Record<string, any> = {};
   if (abiTupleParameter.components.length === 0) return initialForm;
 
@@ -82,7 +99,7 @@ const getInitalTupleFormState = (abiTupleParameter: AbiParameterTuple) => {
   return initialForm;
 };
 
-const getInitalTupleArrayFormState = (abiTupleParameter: AbiParameterTuple) => {
+const getInitialTupleArrayFormState = (abiTupleParameter: AbiParameterTuple) => {
   const initialForm: Record<string, any> = {};
   if (abiTupleParameter.components.length === 0) return initialForm;
   abiTupleParameter.components.forEach((component, componentIndex) => {
@@ -143,7 +160,7 @@ export {
   getFunctionInputKey,
   getInitialFormState,
   getParsedContractFunctionArgs,
-  getInitalTupleFormState,
-  getInitalTupleArrayFormState,
+  getInitialTupleFormState,
+  getInitialTupleArrayFormState,
   transformAbiFunction,
 };

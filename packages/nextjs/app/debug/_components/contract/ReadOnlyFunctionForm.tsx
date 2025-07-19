@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InheritanceTooltip } from "./InheritanceTooltip";
 import { Abi, AbiFunction } from "abitype";
 import { Address } from "viem";
-import { useContractRead } from "wagmi";
+import { useReadContract } from "wagmi";
 import {
   ContractInput,
   displayTxResult,
@@ -13,6 +13,7 @@ import {
   getParsedContractFunctionArgs,
   transformAbiFunction,
 } from "~~/app/debug/_components/contract";
+import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 import { getParsedError, notification } from "~~/utils/scaffold-eth";
 
 type ReadOnlyFunctionFormProps = {
@@ -30,18 +31,26 @@ export const ReadOnlyFunctionForm = ({
 }: ReadOnlyFunctionFormProps) => {
   const [form, setForm] = useState<Record<string, any>>(() => getInitialFormState(abiFunction));
   const [result, setResult] = useState<unknown>();
+  const { targetNetwork } = useTargetNetwork();
 
-  const { isFetching, refetch } = useContractRead({
+  const { isFetching, refetch, error } = useReadContract({
     address: contractAddress,
     functionName: abiFunction.name,
     abi: abi,
     args: getParsedContractFunctionArgs(form),
-    enabled: false,
-    onError: (error: any) => {
-      const parsedErrror = getParsedError(error);
-      notification.error(parsedErrror);
+    chainId: targetNetwork.id,
+    query: {
+      enabled: false,
+      retry: false,
     },
   });
+
+  useEffect(() => {
+    if (error) {
+      const parsedError = getParsedError(error);
+      notification.error(parsedError);
+    }
+  }, [error]);
 
   const transformedFunction = transformAbiFunction(abiFunction);
   const inputElements = transformedFunction.inputs.map((input, inputIndex) => {
@@ -67,17 +76,17 @@ export const ReadOnlyFunctionForm = ({
         <InheritanceTooltip inheritedFrom={inheritedFrom} />
       </p>
       {inputElements}
-      <div className="flex justify-between gap-2 flex-wrap">
-        <div className="flex-grow w-4/5">
+      <div className="flex flex-col md:flex-row justify-between gap-2 flex-wrap">
+        <div className="grow w-full md:max-w-[80%]">
           {result !== null && result !== undefined && (
-            <div className="bg-secondary rounded-3xl text-sm px-4 py-1.5 break-words">
+            <div className="bg-secondary rounded-3xl text-sm px-4 py-1.5 break-words overflow-auto">
               <p className="font-bold m-0 mb-1">Result:</p>
-              <pre className="whitespace-pre-wrap break-words">{displayTxResult(result)}</pre>
+              <pre className="whitespace-pre-wrap break-words">{displayTxResult(result, "sm")}</pre>
             </div>
           )}
         </div>
         <button
-          className="btn btn-secondary btn-sm"
+          className="btn btn-secondary btn-sm self-end md:self-start"
           onClick={async () => {
             const { data } = await refetch();
             setResult(data);

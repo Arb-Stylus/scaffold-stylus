@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { ContractInput } from "./ContractInput";
-import { getFunctionInputKey, getInitalTupleArrayFormState } from "./utilsContract";
+import { getFunctionInputKey, getInitialTupleArrayFormState } from "./utilsContract";
 import { replacer } from "~~/utils/scaffold-eth/common";
 import { AbiParameterTuple } from "~~/utils/scaffold-eth/contract";
 
@@ -12,7 +12,7 @@ type TupleArrayProps = {
 };
 
 export const TupleArray = ({ abiTupleParameter, setParentForm, parentStateObjectKey }: TupleArrayProps) => {
-  const [form, setForm] = useState<Record<string, any>>(() => getInitalTupleArrayFormState(abiTupleParameter));
+  const [form, setForm] = useState<Record<string, any>>(() => getInitialTupleArrayFormState(abiTupleParameter));
   const [additionalInputs, setAdditionalInputs] = useState<Array<typeof abiTupleParameter.components>>([
     abiTupleParameter.components,
   ]);
@@ -21,15 +21,18 @@ export const TupleArray = ({ abiTupleParameter, setParentForm, parentStateObject
 
   useEffect(() => {
     // Extract and group fields based on index prefix
-    const groupedFields = Object.keys(form).reduce((acc, key) => {
-      const [indexPrefix, ...restArray] = key.split("_");
-      const componentName = restArray.join("_");
-      if (!acc[indexPrefix]) {
-        acc[indexPrefix] = {};
-      }
-      acc[indexPrefix][componentName] = form[key];
-      return acc;
-    }, {} as Record<string, Record<string, any>>);
+    const groupedFields = Object.keys(form).reduce(
+      (acc, key) => {
+        const [indexPrefix, ...restArray] = key.split("_");
+        const componentName = restArray.join("_");
+        if (!acc[indexPrefix]) {
+          acc[indexPrefix] = {};
+        }
+        acc[indexPrefix][componentName] = form[key];
+        return acc;
+      },
+      {} as Record<string, Record<string, any>>,
+    );
 
     let argsArray: Array<Record<string, any>> = [];
 
@@ -98,8 +101,8 @@ export const TupleArray = ({ abiTupleParameter, setParentForm, parentStateObject
   return (
     <div>
       <div className="collapse collapse-arrow bg-base-200 pl-4 py-1.5 border-2 border-secondary">
-        <input type="checkbox" className="min-h-fit peer" />
-        <div className="collapse-title p-0 min-h-fit peer-checked:mb-1 text-primary-content/50">
+        <input type="checkbox" className="min-h-fit! peer" />
+        <div className="collapse-title after:top-3.5! p-0 min-h-fit! peer-checked:mb-1 text-primary-content/50">
           <p className="m-0 text-[1rem]">{abiTupleParameter.internalType}</p>
         </div>
         <div className="ml-3 flex-col space-y-2 border-secondary/70 border-l-2 pl-4 collapse-content">
