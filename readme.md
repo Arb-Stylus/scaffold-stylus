@@ -1,13 +1,13 @@
 # 🏗 scaffold-stylus
 
 <h4 align="center">
-  <a href="">Documentation</a> |
+  <a href="https://arb-stylus.github.io/scaffold-stylus-docs/">Documentation</a> |
   <a href="https://www.scaffoldstylus.com/">Website</a>
 </h4>
 
 🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Arbitrum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
 
-⚙️ Built using NextJS, RainbowKit, Stylus, Wagmi, Viem, and Typescript.
+⚙️ Built using Rust, NextJS, RainbowKit, Stylus, Wagmi, Viem, and Typescript.
 
 - ✅ **Contract Hot Reload**: Your frontend auto-adapts to your smart contract as you edit it.
 - 🪝 **[Custom hooks]()**: Collection of React hooks wrapper around [wagmi](https://wagmi.sh/) to simplify interactions with smart contracts with typescript autocompletion.
@@ -102,9 +102,9 @@ To deploy your contracts to a different network (other than the default local Ni
    - Example:
 
      ```ts
-     import { mainnet } from "viem/chains";
+     import * as chains from "viem/chains";
      // ...
-     targetNetworks: [mainnet],
+     targetNetworks: [chains.arbitrumSepolia],
      ```
 
 **Note:**
@@ -117,7 +117,7 @@ To deploy your contracts to a different network (other than the default local Ni
 
 Visit our [docs](https://arb-stylus.github.io/scaffold-stylus-docs/) to learn how to start building with Scaffold-Stylus.
 
-To know more about its features, check out our [website](https://drone-cure-43592424.figma.site).
+To know more about its features, check out our [website](https://www.scaffoldstylus.com/).
 
 ## Contributing to Scaffold-Stylus
 

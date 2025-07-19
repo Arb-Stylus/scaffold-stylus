@@ -1,6 +1,6 @@
 import * as chains from "viem/chains";
 import scaffoldConfig from "~~/scaffold.config";
-import { arbitrumNitro } from "~~/utils/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
 
 type ChainAttributes = {
   // color | [lightThemeColor, darkThemeColor]

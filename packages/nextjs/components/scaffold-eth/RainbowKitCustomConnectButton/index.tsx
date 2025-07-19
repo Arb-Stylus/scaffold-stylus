@@ -14,8 +14,8 @@ import { useAutoConnect, useNetworkColor } from "~~/hooks/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 import scaffoldConfig from "~~/scaffold.config";
 import { BurnerConnector } from "~~/services/web3/wagmi-burner/BurnerConnector";
-import { arbitrumNitro } from "~~/utils/chain";
 import { getTargetNetworks } from "~~/utils/scaffold-eth";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
 
 /**
  * Custom Wagmi Connect Button (watch balance + custom design)

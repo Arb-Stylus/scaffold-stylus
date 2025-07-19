@@ -14,8 +14,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { BlockieAvatar, isENS } from "~~/components/scaffold-eth";
 import { useCopyToClipboard, useOutsideClick } from "~~/hooks/scaffold-eth";
-import { arbitrumNitro } from "~~/utils/chain";
 import { getTargetNetworks } from "~~/utils/scaffold-eth";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
 
 const allowedNetworks = getTargetNetworks();
 

@@ -1,7 +1,7 @@
 import { TransactionWithFunction } from "./block";
 import { GenericContractsDeclaration } from "./contract";
 import { Abi, AbiFunction, decodeFunctionData, getAbiItem } from "viem";
-import { arbitrumNitro } from "~~/utils/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
 import contractData from "~~/contracts/deployedContracts";
 
 type ContractsInterfaces = Record<string, Abi>;

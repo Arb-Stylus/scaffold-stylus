@@ -8,7 +8,7 @@ import { BanknotesIcon } from "@heroicons/react/24/outline";
 import { Address, AddressInput, Balance, EtherInput } from "~~/components/scaffold-eth";
 import { useTransactor } from "~~/hooks/scaffold-eth";
 import { notification } from "~~/utils/scaffold-eth";
-import { arbitrumNitro } from "~~/utils/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
 
 
 // Account index to use from generated hardhat accounts.

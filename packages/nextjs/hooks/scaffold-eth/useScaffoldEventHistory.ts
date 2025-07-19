@@ -13,6 +13,7 @@ import {
   UseScaffoldEventHistoryConfig,
   UseScaffoldEventHistoryData,
 } from "~~/utils/scaffold-eth/contract";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
 
 const getEvents = async (
   getLogsParams: GetLogsParameters<AbiEvent | undefined, AbiEvent[] | undefined, boolean, BlockNumber, BlockNumber>,

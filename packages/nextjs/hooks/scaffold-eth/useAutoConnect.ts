@@ -4,8 +4,8 @@ import { Chain } from "viem/chains";
 import { Connector, useAccount, useConnect } from "wagmi";
 import scaffoldConfig from "~~/scaffold.config";
 import { burnerWalletId } from "~~/services/web3/wagmi-burner/BurnerConnector";
-import { arbitrumNitro } from "~~/utils/chain";
 import { getTargetNetworks } from "~~/utils/scaffold-eth";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
 
 const SCAFFOLD_WALLET_STORAGE_KEY = "scaffoldEth2.wallet";
 const WAGMI_WALLET_STORAGE_KEY = "wagmi.wallet";
