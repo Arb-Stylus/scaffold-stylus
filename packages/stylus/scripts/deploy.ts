@@ -25,20 +25,31 @@ export default async function deployScript(deployOptions: DeployOptions) {
   console.log(`📁 Deployment directory: ${config.deploymentDir}`);
   console.log(`\n`);
 
-  // Deploy a single contract
   await deployStylusContract({
     contract: "your-contract",
     constructorArgs: [config.deployerAddress!],
     ...deployOptions,
   });
 
-  /// Deploy your contract with a custom name
-  // await deployStylusContract({
-  //   contract: "your-contract",
-  //   constructorArgs: [config.deployerAddress],
-  //   name: "my-contract",
-  //   ...deployOptions,
-  // });
+  await deployStylusContract({
+    contract: "bulletproofs",
+    ...deployOptions,
+  });
+
+  await deployStylusContract({
+    contract: "counter",
+    ...deployOptions,
+  });
+
+  await deployStylusContract({
+    contract: "signed",
+    ...deployOptions,
+  });
+
+  await deployStylusContract({
+    contract: "unsigned",
+    ...deployOptions,
+  });
 
   // Print the deployed addresses
   console.log("\n\n");
