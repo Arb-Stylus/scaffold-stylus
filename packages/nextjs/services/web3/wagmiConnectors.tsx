@@ -24,13 +24,13 @@ const wallets = [
   ...(!targetNetworks.some(network => network.id !== (arbitrumNitro as chains.Chain).id) || !onlyLocalBurnerWallet
     ? [rainbowkitBurnerWallet]
     : []),
-  braveWallet,
-  metaMaskWallet,
-  walletConnectWallet,
-  ledgerWallet,
-  coinbaseWallet,
-  rainbowWallet,
-  safeWallet,
+
+  // NOTE: this is a workaround that loads the wallets if indexedDB is ready.
+  // TODO: revert when fix is available from rainbowkit / wagmi side
+  // source: https://github.com/rainbow-me/rainbowkit/issues/2476#issuecomment-3117608183
+  ...(typeof indexedDB !== "undefined"
+    ? [braveWallet, metaMaskWallet, walletConnectWallet, ledgerWallet, coinbaseWallet, rainbowWallet, safeWallet]
+    : []),
 ];
 
 /**
