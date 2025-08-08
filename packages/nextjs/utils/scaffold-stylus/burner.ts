@@ -1,6 +1,6 @@
 import type { Hex } from "viem";
 import { generatePrivateKey } from "viem/accounts";
-import { arbitrumNitro } from "./chain";
+import { arbitrumNitro } from "./supportedChains";
 
 const burnerStorageKey = "burnerWallet.pk";
 export const burnerWalletId = "burnerWallet" as const;

@@ -10,7 +10,7 @@ import {
   webSocket,
 } from "viem";
 import { decodeTransactionData } from "~~/utils/scaffold-eth";
-import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/supportedChains";
 
 const BLOCKS_PER_PAGE = 5;
 

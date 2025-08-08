@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth";
-import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/supportedChains";
 
 type AddressLinkWrapperProps = {
   children: React.ReactNode;
