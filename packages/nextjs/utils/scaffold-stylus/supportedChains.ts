@@ -3,7 +3,7 @@ import { arbitrum, arbitrumSepolia, arbitrumNova } from "viem/chains";
 
 const arbitrumNitro = defineChain({
   id: 412346,
-  name: "Arbitrum Nitro",
+  name: "Arbitrum Nitro DevNode",
   network: "arbitrum-nitro",
   nativeCurrency: {
     name: "Ether",
