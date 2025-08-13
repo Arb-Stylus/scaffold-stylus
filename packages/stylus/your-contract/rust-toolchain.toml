@@ -1,2 +1,8 @@
+# NOTE: this toolchain is nightly because of openzeppelin requirements
+
 [toolchain]
-channel = "1.87.0"
+# We should use stable here once nitro-testnode is updated and the contracts fit
+# the size limit (issue <https://github.com/OpenZeppelin/rust-contracts-stylus/issues/129>).
+channel = "1.89.0"
+components = ["rust-src", "rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]

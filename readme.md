@@ -189,7 +189,7 @@ To deploy your contracts to other networks (other than the default local Nitro d
 This template supports Arbitrum networks only. You can test which networks are available and their RPC URLs:
 
 ```bash
-yarn test:networks
+yarn info:networks
 ```
 
 This will show you all supported networks and their corresponding RPC endpoints.

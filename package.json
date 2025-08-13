@@ -1,6 +1,6 @@
 {
   "name": "ss",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "private": true,
   "workspaces": {
     "packages": [
@@ -24,7 +24,7 @@
     "stylus:format": "yarn workspace @ss/stylus format",
     "stylus:test": "yarn workspace @ss/stylus test",
     "test": "yarn stylus:test",
-    "test:networks": "yarn workspace @ss/stylus test:networks",
+    "info:networks": "yarn workspace @ss/stylus info:networks",
     "format": "yarn next:format",
     "start": "yarn workspace @ss/nextjs dev",
     "next:lint": "yarn workspace @ss/nextjs lint",
