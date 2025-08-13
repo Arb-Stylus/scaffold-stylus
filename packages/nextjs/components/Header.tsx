@@ -8,7 +8,7 @@ import { SwitchTheme } from "./SwitchTheme";
 import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import { useOutsideClick, useTargetNetwork } from "~~/hooks/scaffold-eth";
-import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/supportedChains";
 
 type HeaderMenuLink = {
   label: string;

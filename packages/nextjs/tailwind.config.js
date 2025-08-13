@@ -25,11 +25,13 @@ module.exports = {
           warning: "#FFCF72",
           error: "#FF8863",
 
+          "--surface": "rgba(0, 0, 0, 0.04)",
           "--bg-border": "#ffffff",
           "--round-color": "#000",
           "--rounded-btn": "9999rem",
           "--gradient-start": "#3283EB",
           "--gradient-end": "#E3066E",
+          "--border-color": "rgba(0, 0, 0, 0.07)",
 
           ".tooltip": {
             "--tooltip-tail": "6px",
@@ -61,11 +63,13 @@ module.exports = {
           warning: "#FFCF72",
           error: "#FF8863",
 
+          "--surface": "rgba(255, 255, 255, 0.04)",
           "--bg-border": "#000000",
           "--round-color": "#E3066E",
           "--rounded-btn": "9999rem",
           "--gradient-start": "#3283EB",
           "--gradient-end": "#E3066E",
+          "--border-color": "rgba(255, 255, 255, 0.20)",
 
           ".tooltip": {
             "--tooltip-tail": "6px",

@@ -12,7 +12,7 @@ import { Address } from "viem";
 import { useNetworkColor } from "~~/hooks/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 import { saveBurnerPK } from "~~/utils/scaffold-stylus/burner";
-import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/supportedChains";
 
 /**
  * Custom Wagmi Connect Button (watch balance + custom design)

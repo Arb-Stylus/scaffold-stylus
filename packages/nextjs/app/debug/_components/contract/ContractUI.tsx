@@ -19,15 +19,15 @@ type ContractUIProps = {
  * UI component to interface with deployed contracts.
  **/
 export const ContractUI = ({ contractName, className = "" }: ContractUIProps) => {
-  const [activeTab, setActiveTab] = useState("read");
+  const [activeTab, setActiveTab] = useState("write");
   const [refreshDisplayVariables, triggerRefreshDisplayVariables] = useReducer(value => !value, false);
   const { targetNetwork } = useTargetNetwork();
   const { data: deployedContractData, isLoading: deployedContractLoading } = useDeployedContractInfo({ contractName });
   const networkColor = useNetworkColor();
 
   const tabs = [
-    { id: "read", label: "Read" },
     { id: "write", label: "Write" },
+    { id: "read", label: "Read" },
   ];
 
   if (deployedContractLoading) {
