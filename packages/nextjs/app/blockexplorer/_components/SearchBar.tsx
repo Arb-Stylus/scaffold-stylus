@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { isAddress, isHex } from "viem";
 import { usePublicClient } from "wagmi";
-import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/supportedChains";
 
 export const SearchBar = () => {
   const [searchInput, setSearchInput] = useState("");
@@ -33,17 +33,36 @@ export const SearchBar = () => {
   };
 
   return (
-    <form onSubmit={handleSearch} className="flex items-center justify-end mb-5 space-x-3 mx-5">
-      <input
-        className="border-primary bg-base-100 text-base-content placeholder:text-base-content/50 p-2 mr-2 w-full md:w-1/2 lg:w-1/3 rounded-md shadow-md focus:outline-hidden focus:ring-2 focus:ring-accent"
-        type="text"
-        value={searchInput}
-        placeholder="Search by hash or address"
-        onChange={e => setSearchInput(e.target.value)}
-      />
-      <button className="btn btn-sm btn-primary" type="submit">
-        Search
-      </button>
+    <form onSubmit={handleSearch} className="flex items-center justify-between mb-5">
+      <div className="uppercase text-3xl font-bold">Block explorer</div>
+      <div className="flex items-center bg-surface rounded-lg shadow-lg py-3 px-4 overflow-hidden">
+        <input
+          className="text-gray-300 bg-transparent py-3 w-full md:w-96 lg:w-96 border-0 focus:outline-none focus:ring-0"
+          type="text"
+          value={searchInput}
+          placeholder="Search by hash or address"
+          onChange={e => setSearchInput(e.target.value)}
+        />
+        <button
+          className="bg-pink-500 hover:bg-pink-600 text-white p-3 rounded-lg transition-colors duration-200 flex items-center justify-center"
+          type="submit"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </button>
+      </div>
     </form>
   );
 };

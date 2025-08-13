@@ -20,13 +20,13 @@ use alloc::vec::Vec;
 /// Import items from the SDK. The prelude contains common traits and macros.
 use stylus_sdk::{
     alloy_primitives::{Address, U256},
-    prelude::*,
     alloy_sol_types::sol,
+    prelude::*,
     stylus_core::log,
 };
 
 /// Import OpenZeppelin Ownable functionality
-use openzeppelin_stylus::access::ownable::{self, Ownable, IOwnable};
+use openzeppelin_stylus::access::ownable::{self, IOwnable, Ownable};
 
 /// Error types for the contract
 #[derive(SolidityError, Debug)]
@@ -38,9 +38,7 @@ pub enum Error {
 impl From<ownable::Error> for Error {
     fn from(value: ownable::Error) -> Self {
         match value {
-            ownable::Error::UnauthorizedAccount(e) => {
-                Error::UnauthorizedAccount(e)
-            }
+            ownable::Error::UnauthorizedAccount(e) => Error::UnauthorizedAccount(e),
             ownable::Error::InvalidOwner(e) => Error::InvalidOwner(e),
         }
     }
@@ -103,14 +101,15 @@ impl YourContract {
     pub fn set_greeting(&mut self, new_greeting: String) {
         // Change state variables
         self.greeting.set_str(&new_greeting);
-        
+
         // Increment counters
         let current_total = self.total_counter.get();
         self.total_counter.set(current_total + U256::from(1));
-        
+
         let sender: Address = self.vm().msg_sender();
         let current_user_count = self.user_greeting_counter.get(sender);
-        self.user_greeting_counter.insert(sender, current_user_count + U256::from(1));
+        self.user_greeting_counter
+            .insert(sender, current_user_count + U256::from(1));
 
         // Set premium based on msg.value
         let msg_value = self.vm().msg_value();
@@ -118,13 +117,15 @@ impl YourContract {
         self.premium.set(is_premium);
 
         // Emit the event
-        log(self.vm(),
+        log(
+            self.vm(),
             GreetingChange {
-            greetingSetter: sender,
-            newGreeting: new_greeting,
-            premium: is_premium,
-            value: msg_value,
-        });
+                greetingSetter: sender,
+                newGreeting: new_greeting,
+                premium: is_premium,
+                value: msg_value,
+            },
+        );
     }
 
     /// Function that allows the owner to withdraw all the Ether in the contract
@@ -139,7 +140,7 @@ impl YourContract {
             let owner = self.ownable.owner();
             let _ = self.vm().transfer_eth(owner, balance);
         }
-        
+
         Ok(())
     }
 
@@ -160,10 +161,7 @@ impl IOwnable for YourContract {
         self.ownable.owner()
     }
 
-    fn transfer_ownership(
-        &mut self,
-        new_owner: Address,
-    ) -> Result<(), Self::Error> {
+    fn transfer_ownership(&mut self, new_owner: Address) -> Result<(), Self::Error> {
         Ok(self.ownable.transfer_ownership(new_owner)?)
     }
 
@@ -172,70 +170,46 @@ impl IOwnable for YourContract {
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use stylus_sdk::testing::*;
+#[cfg(test)]
+mod test {
+    use super::*;
+    use stylus_sdk::testing::*;
 
-//     #[test]
-//     fn test_your_contract() {
-//         let vm = TestVM::default();
-//         let mut contract = YourContract::from(&vm);
-        
-//         // Test initialization
-//         let owner_addr = Address::from([1u8; 20]);
-//         contract.init(owner_addr);
-        
-//         assert_eq!(contract.owner(), owner_addr);
-//         assert_eq!(contract.greeting(), "Building Unstoppable Apps!!!");
-//         assert_eq!(contract.premium(), false);
-//         assert_eq!(contract.total_counter(), U256::ZERO);
+    #[no_mangle]
+    pub unsafe extern "C" fn emit_log(_pointer: *const u8, _len: usize, _: usize) {}
+    #[no_mangle]
+    pub unsafe extern "C" fn msg_sender(_sender: *mut u8) {}
 
-//         // Test setting greeting without payment
-//         contract.set_greeting("Hello World".to_string());
-//         assert_eq!(contract.greeting(), "Hello World");
-//         assert_eq!(contract.premium(), false);
-//         assert_eq!(contract.total_counter(), U256::from(1));
+    #[test]
+    fn test_your_contract() {
+        let vm = TestVM::default();
+        let mut contract = YourContract::from(&vm);
 
-//         // Test user greeting counter
-//         let sender = vm.addr();
-//         assert_eq!(contract.user_greeting_counter(sender), U256::from(1));
+        // Test initialization
+        let owner_addr = Address::from([1u8; 20]);
+        let _ = contract.constructor(owner_addr);
 
-//         // Test setting greeting with payment
-//         vm.set_value(U256::from(100));
-//         contract.set_greeting("Premium Hello".to_string());
-//         assert_eq!(contract.greeting(), "Premium Hello");
-//         assert_eq!(contract.premium(), true);
-//         assert_eq!(contract.total_counter(), U256::from(2));
-//         assert_eq!(contract.user_greeting_counter(sender), U256::from(2));
-//     }
+        assert_eq!(contract.owner(), owner_addr);
+        assert_eq!(contract.greeting(), "Building Unstoppable Apps!!!");
+        assert_eq!(contract.premium(), false);
+        assert_eq!(contract.total_counter(), U256::ZERO);
 
-//     #[test]
-//     fn test_withdraw() {
-//         let vm = TestVM::default();
-//         let mut contract = YourContract::from(&vm);
-        
-//         // Initialize with owner
-//         let owner_addr = vm.addr(); // Use VM address as owner for testing
-//         contract.init(owner_addr);
+        // Test setting greeting without payment
+        contract.set_greeting("Hello World".to_string());
+        assert_eq!(contract.greeting(), "Hello World");
+        assert_eq!(contract.premium(), false);
+        assert_eq!(contract.total_counter(), U256::from(1));
 
-//         // Test withdraw (in real scenario, contract would have received ETH)
-//         let result = contract.withdraw();
-//         assert!(result.is_ok()); // Should not panic since caller is owner
-//     }
+        // Test user greeting counter
+        let sender = vm.msg_sender();
+        assert_eq!(contract.user_greeting_counter(sender), U256::from(1));
 
-//     #[test]
-//     fn test_withdraw_not_owner() {
-//         let vm = TestVM::default();
-//         let mut contract = YourContract::from(&vm);
-        
-//         // Initialize with different owner
-//         let owner_addr = Address::from([1u8; 20]);
-//         contract.init(owner_addr);
-
-//         // This test should panic with "Not the Owner" when withdraw is called by non-owner
-//         // In a real test environment, you'd want to test this more carefully
-//         // but for now we'll just verify the function exists
-//         assert_eq!(contract.owner(), owner_addr);
-//     }
-// }
+        // Test setting greeting with payment
+        vm.set_value(U256::from(100));
+        contract.set_greeting("Premium Hello".to_string());
+        assert_eq!(contract.greeting(), "Premium Hello");
+        assert_eq!(contract.premium(), true);
+        assert_eq!(contract.total_counter(), U256::from(2));
+        assert_eq!(contract.user_greeting_counter(sender), U256::from(2));
+    }
+}

@@ -5,7 +5,7 @@ import { AddressComponent } from "~~/app/blockexplorer/_components/AddressCompon
 import deployedContracts from "~~/contracts/deployedContracts";
 import { isZeroAddress } from "~~/utils/scaffold-eth/common";
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
-import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/supportedChains";
 
 type PageProps = {
   params: Promise<{ address: Address }>;

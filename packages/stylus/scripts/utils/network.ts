@@ -1,6 +1,6 @@
-import { arbitrum, arbitrumSepolia } from "viem/chains";
+import { arbitrum, arbitrumNova, arbitrumSepolia } from "viem/chains";
 import { Address, Chain } from "viem";
-import { arbitrumNitro } from "../../../nextjs/utils/scaffold-stylus/chain";
+import { arbitrumNitro } from "../../../nextjs/utils/scaffold-stylus/supportedChains";
 import * as path from "path";
 import * as fs from "fs";
 import { config as dotenvConfig } from "dotenv";
@@ -15,12 +15,14 @@ export const SUPPORTED_NETWORKS: Record<string, Chain> = {
   arbitrum,
   arbitrumSepolia,
   arbitrumNitro: arbitrumNitro as Chain,
+  arbitrumNova: arbitrumNova as Chain,
 };
 
 export const ALIASES: Record<string, string> = {
   mainnet: "arbitrum",
   sepolia: "arbitrumSepolia",
   devnet: "arbitrumNitro",
+  nova: "arbitrumNova",
 };
 
 export function getChain(networkName: string): SupportedNetworkMinimal | null {
@@ -67,6 +69,12 @@ export function getPrivateKey(networkName: string): string {
       } else {
         throw new Error("PRIVATE_KEY_SEPOLIA is not set");
       }
+    case "arbitrumnova":
+      if (process.env["PRIVATE_KEY_NOVA"]) {
+        return process.env["PRIVATE_KEY_NOVA"];
+      } else {
+        throw new Error("PRIVATE_KEY_NOVA is not set");
+      }
     default:
       return (
         process.env["PRIVATE_KEY"] ||
@@ -82,6 +90,8 @@ export const getAccountAddress = (networkName: string): Address | undefined => {
       return process.env["ACCOUNT_ADDRESS_MAINNET"] as Address;
     case "arbitrumsepolia":
       return process.env["ACCOUNT_ADDRESS_SEPOLIA"] as Address;
+    case "arbitrumnova":
+      return process.env["ACCOUNT_ADDRESS_NOVA"] as Address;
     default:
       return (
         (process.env["ACCOUNT_ADDRESS"] as Address) ||
@@ -101,6 +111,11 @@ function getRpcUrlFromChain(chain: Chain): string {
     case arbitrumSepolia.id:
       if (process.env["RPC_URL_SEPOLIA"]) {
         return process.env["RPC_URL_SEPOLIA"];
+      }
+      break;
+    case arbitrumNova.id:
+      if (process.env["RPC_URL_NOVA"]) {
+        return process.env["RPC_URL_NOVA"];
       }
       break;
     default:

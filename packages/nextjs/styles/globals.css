@@ -31,6 +31,15 @@ p {
   @apply shadow-none;
 }
 
+.border-color {
+  border-color: var(--border-color);
+}
+
+.bg-surface {
+  background-color: var(--surface);
+  backdrop-filter: blur(24px);
+}
+
 .bg-secondary {
   background-image: linear-gradient(90deg, #203147 0%, #e3066e 100%) !important;
   color: #fff;

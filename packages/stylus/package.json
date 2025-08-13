@@ -9,10 +9,10 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "deploy": "ts-node scripts/deploy_wrapper.ts",
-    "test:networks": "ts-node scripts/test_network.ts",
+    "info:networks": "ts-node scripts/test_network.ts",
     "export-abi": "ts-node scripts/export_abi.ts",
-    "clean": "rm -rf dist",
-    "test": "cargo test",
+    "clean-contracts": "git clean -xdf -e .env -e your-contract/ -e node_modules/",
+    "test": "ts-node scripts/test.ts",
     "lint": "eslint scripts --ext .ts",
     "lint:fix": "eslint scripts --ext .ts --fix",
     "new-module": "bash scripts/new_module.sh"

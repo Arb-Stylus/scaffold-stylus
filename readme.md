@@ -21,8 +21,8 @@
 
 Before you begin, you need to install the following tools:
 
-- [Node (>= v18.17)](https://nodejs.org/en/download/)
-- Yarn ([v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install))
+- [Node (>= v20.18)](https://nodejs.org/en/download/)
+- Yarn ([v2+](https://yarnpkg.com/getting-started/install))
 - [Git](https://git-scm.com/downloads)
 - [Rust](https://www.rust-lang.org/tools/install)
 - [Docker](https://docs.docker.com/engine/install/)
@@ -189,7 +189,7 @@ To deploy your contracts to other networks (other than the default local Nitro d
 This template supports Arbitrum networks only. You can test which networks are available and their RPC URLs:
 
 ```bash
-yarn test:networks
+yarn info:networks
 ```
 
 This will show you all supported networks and their corresponding RPC endpoints.
@@ -208,7 +208,9 @@ yarn deploy --network <network>
 - **Always keep your private key secure and never commit it to version control**
 - Consider using environment variable management tools for production deployments
 
-## Verify your contract
+## Verify your contract (Highly Experimental)
+
+<details>
 
 #### Prerequisites
 
@@ -219,7 +221,9 @@ Your contract must meet Arbiscan's verification requirements:
 - No custom optimization settings
 - No specific compiler version requirements
 
-### Local Verification
+Check full documentation for more [details](https://docs.arbitrum.io/stylus/how-tos/verifying-contracts-arbiscan#step-4-set-evm-version)
+
+### Stylus Local Verification (Under Development)
 
 Make sure your constructor does not contain any args
 
@@ -243,6 +247,8 @@ This runs `cargo stylus verify` locally after deployment, which:
 - Ensures reproducibility across different environments
 - Validates the deployment transaction
 
+**Note:** This feature is still under development and may not work as expected. Check full documentation for more [details](https://docs.arbitrum.io/stylus/how-tos/verifying-contracts)
+
 ### Arbiscan Verification
 
 For public verification on Arbiscan, follow these steps:
@@ -259,11 +265,13 @@ For public verification on Arbiscan, follow these steps:
    - Provide any constructor arguments if applicable
    - Submit for verification
 
-Check official document for detail instructions: https://docs.arbitrum.io/stylus/how-tos/verifying-contracts-arbiscan
+Check official document for detail instructions: <https://docs.arbitrum.io/stylus/how-tos/verifying-contracts-arbiscan>
 
 > **Note**: Arbiscan verification for Stylus contracts is still evolving. If you encounter issues, consider using the local verification method or check Arbiscan's latest documentation for Stylus-specific instructions.
 
-### 🛠️ Troubleshooting Common Issues
+</details>
+
+## 🛠️ Troubleshooting Common Issues
 
 #### 1. `stylus` Not Recognized
 
@@ -286,9 +294,11 @@ If the version is displayed, `stylus` has been successfully installed and the pa
 If you face issues with the ABI not being generated, you can try one of the following solutions:
 
 - **Restart Docker Node**: Pause and restart the Docker node and the local setup of the project. You can do this by deleting all ongoing running containers and then restarting the local terminal using:
+
   ```bash
   yarn run dev
   ```
+
 - **Modify the Script**: In the `run-dev-node.sh` script, replace the line:
 
   ```bash
@@ -302,6 +312,7 @@ If you face issues with the ABI not being generated, you can try one of the foll
   ```
 
 - **Access Denied Issue**: If you encounter an access denied permission error during ABI generation, run the following command and then execute the script again:
+
   ```bash
   sudo chown -R $USER:$USER target
   ```
@@ -333,6 +344,7 @@ Shell scripts created in Windows often have `CRLF` line endings, which cause iss
    ```
 
 4. Run the Script in WSL:
+
    ```bash
    bash run-dev-node.sh
    ```

@@ -10,7 +10,7 @@ import {
 } from "@rainbow-me/rainbowkit/wallets";
 import { rainbowkitBurnerWallet } from "burner-connector";
 import * as chains from "viem/chains";
-import { arbitrumNitro } from "~~/utils/scaffold-stylus/chain";
+import { arbitrumNitro } from "~~/utils/scaffold-stylus/supportedChains";
 
 import scaffoldConfig from "~~/scaffold.config";
 
@@ -36,16 +36,22 @@ const wallets = [
 /**
  * wagmi connectors for the wagmi context
  */
-export const wagmiConnectors = connectorsForWallets(
-  [
-    {
-      groupName: "Supported Wallets",
-      wallets,
-    },
-  ],
+export const wagmiConnectors = () => {
+  // Only create connectors on client-side to avoid SSR issues
+  if (typeof window === "undefined") {
+    return [];
+  }
 
-  {
-    appName: "scaffold-stylus",
-    projectId: scaffoldConfig.walletConnectProjectId,
-  },
-);
+  return connectorsForWallets(
+    [
+      {
+        groupName: "Supported Wallets",
+        wallets,
+      },
+    ],
+    {
+      appName: "scaffold-stylus",
+      projectId: scaffoldConfig.walletConnectProjectId,
+    },
+  );
+};

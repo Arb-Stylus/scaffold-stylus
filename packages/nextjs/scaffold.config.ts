@@ -1,10 +1,10 @@
 // @ts-nocheck
 
-import { arbitrumNitro } from "./utils/scaffold-stylus/chain";
-import * as chains from "viem/chains";
+import * as chains from "./utils/scaffold-stylus/supportedChains";
+import { Chain } from "viem/chains";
 
 export type ScaffoldConfig = {
-  targetNetworks: readonly chains.Chain[];
+  targetNetworks: readonly Chain[];
   pollingInterval: number;
   alchemyApiKey: string;
   rpcOverrides?: Record<number, string>;
@@ -17,7 +17,7 @@ export const DEFAULT_ALCHEMY_API_KEY = "oKxs-03sij-U_N0iOlrSsZFr29-IqbuF";
 
 const scaffoldConfig = {
   // The networks on which your DApp is live
-  targetNetworks: [arbitrumNitro],
+  targetNetworks: [chains.arbitrumNitro],
 
   // The interval at which your front-end polls the RPC servers for new data
   // it has no effect if you only target the local network (default is 4000)

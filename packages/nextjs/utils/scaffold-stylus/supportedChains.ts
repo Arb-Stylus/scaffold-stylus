@@ -1,8 +1,9 @@
 import { defineChain } from "viem";
+import { arbitrum, arbitrumSepolia, arbitrumNova } from "viem/chains";
 
-export const arbitrumNitro = defineChain({
+const arbitrumNitro = defineChain({
   id: 412346,
-  name: "Arbitrum Nitro",
+  name: "Arbitrum Nitro DevNode",
   network: "arbitrum-nitro",
   nativeCurrency: {
     name: "Ether",
@@ -40,3 +41,5 @@ export const arbitrumNitro = defineChain({
     },
   ],
 });
+
+export { arbitrum, arbitrumSepolia, arbitrumNova, arbitrumNitro };

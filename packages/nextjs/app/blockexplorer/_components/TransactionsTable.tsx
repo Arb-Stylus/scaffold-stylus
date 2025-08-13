@@ -10,19 +10,17 @@ export const TransactionsTable = ({ blocks, transactionReceipts }: TransactionsT
 
   return (
     <div className="flex justify-center px-4 md:px-0">
-      <div className="overflow-x-auto w-full shadow-2xl rounded-xl">
-        <table className="table text-xl bg-base-100 table-zebra w-full md:table-md table-sm">
-          <thead>
-            <tr className="rounded-xl text-sm text-base-content">
-              <th className="bg-primary">Transaction Hash</th>
-              <th className="bg-primary">Function Called</th>
-              <th className="bg-primary">Block Number</th>
-              <th className="bg-primary">Time Mined</th>
-              <th className="bg-primary">From</th>
-              <th className="bg-primary">To</th>
-              <th className="bg-primary text-end">Value ({targetNetwork.nativeCurrency.symbol})</th>
-            </tr>
-          </thead>
+      <div className="overflow-x-auto w-full p-4 shadow-2xl rounded-3xl border border-color">
+        <table className="table w-full md:table-md table-sm">
+          <tr className="rounded-xl bg-[#1B1B1B] text-white">
+            <th className="rounded-l-xl">Transaction Hash</th>
+            <th>Function Called</th>
+            <th>Block Number</th>
+            <th>Time Mined</th>
+            <th>From</th>
+            <th>To</th>
+            <th className="text-end rounded-r-xl">Value ({targetNetwork.nativeCurrency.symbol})</th>
+          </tr>
           <tbody>
             {blocks.map(block =>
               (block.transactions as TransactionWithFunction[]).map(tx => {
@@ -31,14 +29,16 @@ export const TransactionsTable = ({ blocks, transactionReceipts }: TransactionsT
                 const functionCalled = tx.input.substring(0, 10);
 
                 return (
-                  <tr key={tx.hash} className="hover text-sm">
+                  <tr key={tx.hash} className="hover">
                     <td className="w-1/12 md:py-4">
                       <TransactionHash hash={tx.hash} />
                     </td>
                     <td className="w-2/12 md:py-4">
-                      {tx.functionName === "0x" ? "" : <span className="mr-1">{tx.functionName}</span>}
+                      {/* {tx.functionName === "0x" ? "" : <span className="mr-1">{tx.functionName}</span>} */}
                       {functionCalled !== "0x" && (
-                        <span className="badge badge-primary font-bold text-xs">{functionCalled}</span>
+                        <span className="inline-block bg-[#E3066E33] border-none font-bold text-[#FF50A2] py-1.5 px-3 rounded-full">
+                          {functionCalled}
+                        </span>
                       )}
                     </td>
                     <td className="w-1/12 md:py-4">{block.number?.toString()}</td>

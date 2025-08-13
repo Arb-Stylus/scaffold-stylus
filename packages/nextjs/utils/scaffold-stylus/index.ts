@@ -1,3 +1,3 @@
 export * from "./burner";
-export * from "./chain";
+export * from "./supportedChains";
 export * from "./networks";

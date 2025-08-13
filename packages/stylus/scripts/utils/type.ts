@@ -13,7 +13,7 @@ export interface DeployCommandOptions
 export interface DeployOptions {
   contract?: string;
   name?: string;
-  constructorArgs?: string[];
+  constructorArgs?: NonNullable<unknown>[];
   network?: string;
   estimateGas?: boolean;
   maxFee?: string;
