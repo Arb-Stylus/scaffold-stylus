@@ -10,7 +10,6 @@ import {
 import * as path from "path";
 import * as fs from "fs";
 import { config as dotenvConfig } from "dotenv";
-import { SupportedNetworkMinimal } from "./type";
 
 const envPath = path.resolve(__dirname, "../../.env");
 if (fs.existsSync(envPath)) {
@@ -47,7 +46,7 @@ export const ORBIT_CHAINS: Chain[] = [
   superpositionTestnet as Chain,
 ];
 
-export function getChain(networkName: string): SupportedNetworkMinimal | null {
+export function getChain(networkName: string): Chain | null {
   try {
     const actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
 
@@ -55,15 +54,7 @@ export function getChain(networkName: string): SupportedNetworkMinimal | null {
       ([key]) => key.toLowerCase() === actualNetworkName.toLowerCase(),
     );
 
-    if (chainEntry) {
-      return {
-        name: chainEntry[0],
-        alias: getAliasFromNetworkName(chainEntry[0]),
-        id: chainEntry[1].id.toString(),
-        rpcUrl: getRpcUrlFromChain(chainEntry[1]),
-        blockExplorerUrl: chainEntry[1].blockExplorers?.default?.url,
-      };
-    }
+    if (chainEntry) return chainEntry[1];
 
     const supportedNetworks = Object.keys(SUPPORTED_NETWORKS);
     console.warn(
@@ -132,6 +123,7 @@ export function getPrivateKey(networkName: string): string {
 
 export const getAccountAddress = (networkName: string): Address | undefined => {
   const actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
+
   switch (actualNetworkName.toLowerCase()) {
     case "arbitrum":
       return process.env["ACCOUNT_ADDRESS_MAINNET"] as Address;
@@ -155,7 +147,7 @@ export const getAccountAddress = (networkName: string): Address | undefined => {
   }
 };
 
-function getRpcUrlFromChain(chain: Chain): string {
+export function getRpcUrlFromChain(chain: Chain): string {
   //Prefer user rpc url from env
   switch (chain.id) {
     case arbitrum.id:
@@ -214,9 +206,15 @@ function getRpcUrlFromChain(chain: Chain): string {
   throw new Error(`No RPC URL found for chain ${chain.name}`);
 }
 
-function getAliasFromNetworkName(networkName: string): string {
+export function getBlockExplorerUrlFromChain(chain: Chain): string | undefined {
   return (
-    Object.entries(ALIASES).find(([, alias]) => alias === networkName)?.[0] ||
-    networkName
+    chain.blockExplorers?.default?.url || chain.blockExplorers?.etherscan?.url
   );
 }
+
+// function getAliasFromNetworkName(networkName: string): string {
+//   return (
+//     Object.entries(ALIASES).find(([, alias]) => alias === networkName)?.[0] ||
+//     networkName
+//   );
+// }

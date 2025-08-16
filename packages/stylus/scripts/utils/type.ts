@@ -1,4 +1,4 @@
-import { Address } from "viem";
+import { Address, Chain } from "viem";
 
 interface BaseCommandOptions {
   _: (string | number)[];
@@ -14,11 +14,11 @@ export interface DeployOptions {
   contract?: string;
   name?: string;
   constructorArgs?: NonNullable<unknown>[];
+  useInitializeFunction?: boolean;
   network?: string;
   estimateGas?: boolean;
   maxFee?: string;
   verify?: boolean;
-  isOrbit?: boolean;
 }
 
 export interface DeploymentData {
@@ -32,7 +32,7 @@ export interface DeploymentConfig {
   contractFolder: string;
   contractName: string;
   deploymentDir: string;
-  chain?: SupportedNetworkMinimal;
+  chain: Chain;
 }
 
 export interface ExportConfig {
@@ -42,12 +42,4 @@ export interface ExportConfig {
   contractAddress: Address;
   txHash: string;
   chainId: string;
-}
-
-export interface SupportedNetworkMinimal {
-  name: string;
-  alias: string;
-  id: string;
-  rpcUrl: string;
-  blockExplorerUrl?: string | undefined;
 }
