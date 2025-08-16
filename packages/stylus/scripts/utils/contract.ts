@@ -225,3 +225,60 @@ export function handleSolcError(
     console.error("\n💡 Please check the error details above and try again.");
   }
 }
+
+/**
+ * Dynamically load deployed contracts from the TypeScript file
+ * This is useful when the file has been updated during runtime
+ * @returns The deployed contracts object
+ */
+export function loadDeployedContracts(): any {
+  const deployedContractsPath = "../nextjs/contracts/deployedContracts.ts";
+
+  if (!fs.existsSync(deployedContractsPath)) {
+    throw new Error("deployedContracts.ts file not found");
+  }
+
+  const fileContent = fs.readFileSync(deployedContractsPath, "utf8");
+  const match = fileContent.match(
+    /const deployedContracts = ([\s\S]*?) as const;/,
+  );
+
+  if (!match) {
+    throw new Error("Could not parse deployedContracts.ts file");
+  }
+
+  // eslint-disable-next-line no-eval
+  return eval("(" + match[1] + ")");
+}
+
+/**
+ * Get contract data from deployed contracts
+ * @param chainId - The chain ID
+ * @param contractName - The contract name
+ * @returns The contract data with address, txHash, and abi
+ */
+export function getContractData(
+  chainId: string | number,
+  contractName: string,
+): any {
+  const deployedContracts = loadDeployedContracts();
+
+  if (
+    !deployedContracts ||
+    !deployedContracts[chainId] ||
+    !deployedContracts[chainId][contractName]
+  ) {
+    throw new Error(
+      `Contract ${contractName} not found in deployedContracts for chain ${chainId}`,
+    );
+  }
+
+  const contractData = deployedContracts[chainId][contractName];
+  if (!contractData.abi) {
+    throw new Error(
+      `ABI not found for contract ${contractName} on chain ${chainId}`,
+    );
+  }
+
+  return contractData;
+}

@@ -5,16 +5,16 @@ import {
   extractDeploymentInfo,
   saveDeployment,
   ORBIT_CHAINS,
+  getBlockExplorerUrlFromChain,
+  getRpcUrlFromChain,
+  getContractData,
   // estimateGasPrice,
 } from "./utils/";
 import { exportStylusAbi } from "./export_abi";
 import { DeployOptions } from "./utils/type";
 import { buildDeployCommand } from "./utils/command";
-import { Chain, createPublicClient, createWalletClient, http } from "viem";
+import { Abi, createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-
-import { arbitrumNitro } from "../../nextjs/utils/scaffold-stylus/supportedChains";
-import deployedContracts from "../../nextjs/contracts/deployedContracts";
 
 /**
  * Deploy a single contract using cargo stylus
@@ -31,6 +31,9 @@ export default async function deployStylusContract(
   ensureDeploymentDirectory(config.deploymentDir);
 
   console.log(`📄 Contract name: ${config.contractName}`);
+
+  const orbitChain = ORBIT_CHAINS.find((chain) => chain.id === config.chain.id);
+  if (orbitChain) deployOptions.useInitializeFunction = true;
 
   try {
     // Step 1: Deploy the contract using cargo stylus with contract address
@@ -50,12 +53,13 @@ export default async function deployStylusContract(
     // Extract the actual deployed address from the output
     const deploymentInfo = extractDeploymentInfo(deployOutput);
     if (deploymentInfo) {
-      if (config.chain?.blockExplorerUrl) {
+      const blockExplorerUrl = getBlockExplorerUrlFromChain(config.chain);
+      if (blockExplorerUrl) {
         console.log(
-          `📋 Contract deployed: ${config.chain?.blockExplorerUrl}/address/${deploymentInfo.address}`,
+          `📋 Contract deployed: ${blockExplorerUrl}/address/${deploymentInfo.address}`,
         );
         console.log(
-          `Transaction hash: ${config.chain?.blockExplorerUrl}/tx/${deploymentInfo.txHash}`,
+          `Transaction hash: ${blockExplorerUrl}/tx/${deploymentInfo.txHash}`,
         );
       } else {
         console.log(
@@ -75,44 +79,36 @@ export default async function deployStylusContract(
       config.contractFolder,
       config.contractName,
       false,
-      config.chain?.id,
+      config.chain.id.toString(),
     );
 
     // Call the initialize function if orbit deployment
-    if (
-      !!deployOptions.isOrbit &&
-      config.chain?.id !== arbitrumNitro?.id.toString()
-    ) {
-      const orbitChain = ORBIT_CHAINS.find(
-        (chain) => chain.id.toString() === config.chain?.id,
-      );
-
-      if (!orbitChain) {
-        throw new Error(
-          `Chain ${config.chain?.id} is not supported for orbit deployment`,
-        );
-      }
-
+    if (deployOptions.useInitializeFunction) {
       const publicClient = createPublicClient({
-        chain: orbitChain as unknown as Chain,
+        chain: config.chain,
         transport: http(),
       });
 
       // need wallet client to sign the transaction
       const walletClient = createWalletClient({
-        chain: orbitChain as unknown as Chain,
+        chain: config.chain,
         transport: http(),
       });
 
       const account = privateKeyToAccount(config.privateKey as `0x${string}`);
 
+      // Get contract data from deployed contracts after ABI export
+      const contractData = getContractData(
+        config.chain.id,
+        config.contractName,
+      );
+
       const { request } = await publicClient.simulateContract({
         account,
         address: deploymentInfo.address,
-        // @ts-expect-error deployed contract is empty at the beginning
-        abi: deployedContracts[config.chain.id][config.contractName].abi,
+        abi: contractData.abi as Abi,
         functionName: "initialize",
-        args: deployOptions.constructorArgs,
+        args: deployOptions.constructorArgs as any[],
       });
 
       const initTxHash = await walletClient.writeContract(request);
@@ -124,7 +120,7 @@ export default async function deployStylusContract(
     if (deployOptions.verify) {
       try {
         const output = await executeCommand(
-          `cargo stylus verify --endpoint=${config.chain?.rpcUrl} --deployment-tx=${deploymentInfo.txHash}`,
+          `cargo stylus verify --endpoint=${getRpcUrlFromChain(config.chain)} --deployment-tx=${deploymentInfo.txHash}`,
           deployOptions.contract!,
           "Verifying contract with cargo stylus",
         );

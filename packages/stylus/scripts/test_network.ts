@@ -1,4 +1,4 @@
-import { getChain } from "./utils/";
+import { getChain, getRpcUrlFromChain } from "./utils/";
 import { SUPPORTED_NETWORKS } from "./utils/";
 
 function testNetworkFunctionality() {
@@ -9,7 +9,7 @@ function testNetworkFunctionality() {
   testNetworks.forEach((network) => {
     const chain = getChain(network);
     if (chain) {
-      console.log(`✅ ${network}: ${chain.rpcUrl}`);
+      console.log(`✅ ${network}: ${getRpcUrlFromChain(chain)}`);
     } else {
       console.log(`❌ ${network}: Not found in viem chains`);
     }
