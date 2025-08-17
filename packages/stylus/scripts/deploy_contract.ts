@@ -4,7 +4,6 @@ import {
   executeCommand,
   extractDeploymentInfo,
   saveDeployment,
-  ORBIT_CHAINS,
   getBlockExplorerUrlFromChain,
   getRpcUrlFromChain,
   getContractData,
@@ -16,6 +15,7 @@ import { DeployOptions } from "./utils/type";
 import { buildDeployCommand } from "./utils/command";
 import { Abi, createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { arbitrumNitro } from "../../nextjs/utils/scaffold-stylus/supportedChains";
 
 /**
  * Deploy a single contract using cargo stylus
@@ -32,9 +32,6 @@ export default async function deployStylusContract(
   ensureDeploymentDirectory(config.deploymentDir);
 
   console.log(`📄 Contract name: ${config.contractName}`);
-
-  const orbitChain = ORBIT_CHAINS.find((chain) => chain.id === config.chain.id);
-  if (orbitChain) deployOptions.useInitializeFunction = true;
 
   try {
     // Step 1: Deploy the contract using cargo stylus with contract address
@@ -91,7 +88,8 @@ export default async function deployStylusContract(
 
     // Call the initialize function if orbit deployment
     if (
-      deployOptions.useInitializeFunction &&
+      !!deployOptions.isOrbit &&
+      config.chain.id !== arbitrumNitro.id &&
       contractHasInitializeFunction(contractData)
     ) {
       const publicClient = createPublicClient({

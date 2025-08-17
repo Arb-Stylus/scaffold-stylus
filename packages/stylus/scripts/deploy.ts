@@ -1,5 +1,9 @@
 import deployStylusContract from "./deploy_contract";
-import { getDeploymentConfig, getRpcUrlFromChain, printDeployedAddresses } from "./utils/";
+import {
+  getDeploymentConfig,
+  getRpcUrlFromChain,
+  printDeployedAddresses,
+} from "./utils/";
 import { DeployOptions } from "./utils/type";
 import { config as dotenvConfig } from "dotenv";
 import * as path from "path";
@@ -36,7 +40,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
   // await deployStylusContract({
   //   contract: "counter",
   //   constructorArgs: [100],
-  //   useInitializeFunction: true,
+  //   isOrbit: true,
   //   ...deployOptions,
   // });
 

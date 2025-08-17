@@ -14,7 +14,7 @@ export interface DeployOptions {
   contract?: string;
   name?: string;
   constructorArgs?: NonNullable<unknown>[];
-  useInitializeFunction?: boolean;
+  isOrbit?: boolean;
   network?: string;
   estimateGas?: boolean;
   maxFee?: string;
