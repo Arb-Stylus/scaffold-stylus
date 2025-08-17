@@ -257,10 +257,7 @@ export function loadDeployedContracts(): any {
  * @param contractName - The contract name
  * @returns The contract data with address, txHash, and abi
  */
-export function getContractData(
-  chainId: string | number,
-  contractName: string,
-): any {
+export function getContractData(chainId: string, contractName: string): any {
   const deployedContracts = loadDeployedContracts();
 
   if (
@@ -281,4 +278,8 @@ export function getContractData(
   }
 
   return contractData;
+}
+
+export function contractHasInitializeFunction(contractData: any): boolean {
+  return contractData.abi.some((abi: any) => abi.name === "initialize");
 }

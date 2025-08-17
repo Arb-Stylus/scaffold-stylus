@@ -8,6 +8,7 @@ import {
   getBlockExplorerUrlFromChain,
   getRpcUrlFromChain,
   getContractData,
+  contractHasInitializeFunction,
   // estimateGasPrice,
 } from "./utils/";
 import { exportStylusAbi } from "./export_abi";
@@ -82,8 +83,17 @@ export default async function deployStylusContract(
       config.chain.id.toString(),
     );
 
+    // Get contract data from deployed contracts after ABI export
+    const contractData = getContractData(
+      config.chain.id.toString(),
+      config.contractName,
+    );
+
     // Call the initialize function if orbit deployment
-    if (deployOptions.useInitializeFunction) {
+    if (
+      deployOptions.useInitializeFunction &&
+      contractHasInitializeFunction(contractData)
+    ) {
       const publicClient = createPublicClient({
         chain: config.chain,
         transport: http(),
@@ -97,12 +107,6 @@ export default async function deployStylusContract(
 
       const account = privateKeyToAccount(config.privateKey as `0x${string}`);
 
-      // Get contract data from deployed contracts after ABI export
-      const contractData = getContractData(
-        config.chain.id,
-        config.contractName,
-      );
-
       const { request } = await publicClient.simulateContract({
         account,
         address: deploymentInfo.address,
@@ -114,6 +118,9 @@ export default async function deployStylusContract(
       const initTxHash = await walletClient.writeContract(request);
 
       console.log("Initialize transaction hash: ", initTxHash);
+    } else {
+      console.log("\nContract does not have an initialize function");
+      console.log("Skipping initialization");
     }
 
     // Step 3: Verify the contract
