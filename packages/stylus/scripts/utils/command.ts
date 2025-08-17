@@ -116,7 +116,7 @@ export function executeCommand(
             !command.includes("--no-verify") &&
             errors.includes("mismatch number of constructor arguments")
           ) {
-            errorOutput += `\n\nCan not verify contract with constructor arguments.`;
+            errorOutput += `\nCan not verify contract with constructor arguments.\n`;
           }
         }
 
