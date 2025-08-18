@@ -1,5 +1,9 @@
 import deployStylusContract from "./deploy_contract";
-import { getDeploymentConfig, printDeployedAddresses } from "./utils/";
+import {
+  getDeploymentConfig,
+  getRpcUrlFromChain,
+  printDeployedAddresses,
+} from "./utils/";
 import { DeployOptions } from "./utils/type";
 import { config as dotenvConfig } from "dotenv";
 import * as path from "path";
@@ -18,7 +22,7 @@ if (fs.existsSync(envPath)) {
 export default async function deployScript(deployOptions: DeployOptions) {
   const config = getDeploymentConfig(deployOptions);
 
-  console.log(`📡 Using endpoint: ${config.chain?.rpcUrl}`);
+  console.log(`📡 Using endpoint: ${getRpcUrlFromChain(config.chain)}`);
   if (config.chain) {
     console.log(`🌐 Network: ${config.chain?.name}`);
     console.log(`🔗 Chain ID: ${config.chain?.id}`);
@@ -35,11 +39,13 @@ export default async function deployScript(deployOptions: DeployOptions) {
   });
 
   if (
-    (config.chain?.id || arbitrumNitro.id) === String(arbitrumSepolia.id) ||
-    (config.chain?.id || arbitrumNitro.id) === String(arbitrum.id)
+    String(config.chain?.id || arbitrumNitro.id) ===
+      String(arbitrumSepolia.id) ||
+    String(config.chain?.id || arbitrumNitro.id) === String(arbitrum.id)
   ) {
     const VRF_WRAPPER_ADDRESS =
-      (config.chain?.id || arbitrumSepolia.id) === String(arbitrumSepolia.id)
+      String(config.chain?.id || arbitrumSepolia.id) ===
+      String(arbitrumSepolia.id)
         ? "0x29576aB8152A09b9DC634804e4aDE73dA1f3a3CC"
         : "0x14632CD5c12eC5875D41350B55e825c54406BaaB";
 
@@ -55,6 +61,15 @@ export default async function deployScript(deployOptions: DeployOptions) {
   }
 
   /// Deploy your contract with a custom name
+  // EXAMPLE: Deploy to Orbit Chains, uncomment to try
+  // await deployStylusContract({
+  //   contract: "counter",
+  //   constructorArgs: [100],
+  //   isOrbit: true,
+  //   ...deployOptions,
+  // });
+
+  // EXAMPLE: Deploy your contract with a custom name, uncomment to try
   // await deployStylusContract({
   //   contract: "your-contract",
   //   constructorArgs: [config.deployerAddress],
@@ -64,5 +79,5 @@ export default async function deployScript(deployOptions: DeployOptions) {
 
   // Print the deployed addresses
   console.log("\n\n");
-  printDeployedAddresses(config.deploymentDir, config.chain?.id);
+  printDeployedAddresses(config.deploymentDir, config.chain.id.toString());
 }

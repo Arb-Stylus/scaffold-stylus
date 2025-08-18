@@ -9,248 +9,8 @@ on:
       - main
 
 jobs:
-  # setup:
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest]
-  #       node: [lts/*]
-  #   outputs:
-  #     cache-key: ${{ steps.cache-key.outputs.value }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@master
-  #       with:
-  #         submodules: recursive
-
-  #     - name: Generate cache key
-  #       id: cache-key
-  #       run: |
-  #         echo "value=${{ github.sha }}-${{ matrix.os }}-${{ matrix.node }}" >> $GITHUB_OUTPUT
-
-  #     - name: Setup node env
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #         cache: yarn
-
-  #     - name: Install Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         override: true
-
-  #     - name: Cache Rust dependencies
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: |
-  #           ~/.cargo/registry
-  #           ~/.cargo/git
-  #           packages/stylus/target
-  #         key: rust-${{ runner.os }}-${{ steps.cache-key.outputs.cache-key }}
-  #         restore-keys: |
-  #           rust-${{ runner.os }}-
-
-  #     - name: Install Foundry
-  #       uses: foundry-rs/foundry-toolchain@v1
-  #       with:
-  #         version: nightly
-
-  #     - name: Cache Foundry
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: |
-  #           ~/.foundry
-  #         key: foundry-${{ runner.os }}-${{ steps.cache-key.outputs.cache-key }}
-  #         restore-keys: |
-  #           foundry-${{ runner.os }}-
-
-  #     - name: Install cargo-stylus
-  #       run: |
-  #         # Check if cargo-stylus is already installed and up to date
-  #         if command -v cargo-stylus &> /dev/null; then
-  #           echo "cargo-stylus already installed, checking version..."
-  #           cargo-stylus --version
-  #         else
-  #           echo "Installing cargo-stylus..."
-  #           cargo install --force cargo-stylus
-  #         fi
-
-  #     - name: Install dependencies
-  #       run: yarn install --immutable
-
-  # docker-build:
-  #   runs-on: ${{ matrix.os }}
-  #   needs: setup
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest]
-  #       node: [lts/*]
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@master
-  #       with:
-  #         submodules: recursive
-
-  #     - name: Initialize submodules
-  #       run: |
-  #         cd packages/stylus
-  #         git submodule update --init --recursive
-
-  #     - name: Setup Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
-
-  #     - name: Cache Docker layers
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: /tmp/.buildx-cache
-  #         key: ${{ runner.os }}-buildx-${{ github.sha }}
-  #         restore-keys: |
-  #           ${{ runner.os }}-buildx-
-
-  #     - name: Build Nitro node with Stylus dev dependencies
-  #       uses: docker/build-push-action@v4
-  #       with:
-  #         context: ./packages/stylus
-  #         file: nitro-devnode/stylus-dev/Dockerfile
-  #         target: nitro-node-stylus-dev
-  #         tags: nitro-node-stylus-dev
-  #         build-args: |
-  #           NITRO_NODE_VERSION=v3.5.5-90ee45c
-  #         cache-from: type=local,src=/tmp/.buildx-cache
-  #         cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-  #         load: true
-
-  #     - name: Move cache
-  #       run: |
-  #         rm -rf /tmp/.buildx-cache
-  #         mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-  # test:
-  #   runs-on: ${{ matrix.os }}
-  #   needs: [setup, docker-build]
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest]
-  #       node: [lts/*]
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@master
-  #       with:
-  #         submodules: recursive
-
-  #     - name: Initialize submodules
-  #       run: |
-  #         cd packages/stylus
-  #         git submodule update --init --recursive
-
-  #     - name: Setup node env
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #         cache: yarn
-
-  #     - name: Install Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         override: true
-
-  #     - name: Cache Rust dependencies
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: |
-  #           ~/.cargo/registry
-  #           ~/.cargo/git
-  #           packages/stylus/target
-  #         key: rust-${{ runner.os }}-${{ github.sha }}-${{ matrix.os }}-${{ matrix.node }}
-  #         restore-keys: |
-  #           rust-${{ runner.os }}-
-
-  #     - name: Install Foundry
-  #       uses: foundry-rs/foundry-toolchain@v1
-  #       with:
-  #         version: nightly
-
-  #     - name: Cache Foundry
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: |
-  #           ~/.foundry
-  #         key: foundry-${{ runner.os }}-${{ github.sha }}-${{ matrix.os }}-${{ matrix.node }}
-  #         restore-keys: |
-  #           foundry-${{ runner.os }}-
-
-  #     - name: Install cargo-stylus
-  #       run: |
-  #         # Check if cargo-stylus is already installed and up to date
-  #         if command -v cargo-stylus &> /dev/null; then
-  #           echo "cargo-stylus already installed, checking version..."
-  #           cargo-stylus --version
-  #         else
-  #           echo "Installing cargo-stylus..."
-  #           cargo install --force cargo-stylus
-  #         fi
-
-  #     - name: Install dependencies
-  #       run: yarn install --immutable
-
-  #     - name: Ensure script permissions
-  #       run: |
-  #         chmod +x packages/stylus/scripts/start-chain-with-cors.sh
-
-  #     - name: Start Nitro dev node and deploy contracts
-  #       env:
-  #         ENDPOINT: "http://localhost:8547"
-  #         PRIVATE_KEY: "0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659"
-  #         CONTRACT_NAME: "stylus-hello-world"
-  #         DEPLOYMENT_DIR: "./deployments"
-  #       timeout-minutes: 8
-  #       run: |
-  #         cd packages/stylus
-  #         # Start the chain in background and wait for it to be ready
-  #         ./scripts/start-chain-with-cors.sh --stylus &
-  #         CHAIN_PID=$!
-          
-  #         # Wait for the node to be ready with optimized timeout
-  #         echo "Waiting for Nitro node to be ready..."
-  #         TIMEOUT=90
-  #         COUNTER=0
-  #         until curl -s -X POST -H "Content-Type: application/json" \
-  #           --data '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}' \
-  #           http://127.0.0.1:8547 | grep -q "result"; do
-  #           sleep 1
-  #           COUNTER=$((COUNTER + 1))
-  #           if [ $COUNTER -ge $TIMEOUT ]; then
-  #             echo "Timeout waiting for Nitro node to be ready"
-  #             kill $CHAIN_PID || true
-  #             exit 1
-  #           fi
-  #         done
-          
-  #         echo "Nitro node is ready, deploying contracts..."
-          
-  #         # Ensure deployment directory exists
-  #         mkdir -p deployments
-          
-  #         # Deploy contracts
-  #         yarn deploy
-          
-  #         # Verify deployment artifacts were created
-  #         if [ ! -f "deployments/stylus-hello-world.txt" ]; then
-  #           echo "Error: Deployment artifacts not found"
-  #           kill $CHAIN_PID || true
-  #           exit 1
-  #         fi
-          
-  #         echo "Contract deployment successful!"
-          
-  #         # Kill the chain process
-  #         kill $CHAIN_PID || true
-
   lint-and-test:
     runs-on: ${{ matrix.os }}
-    # needs: [setup, test]
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -266,11 +26,75 @@ jobs:
           cd packages/stylus
           git submodule update --init --recursive
 
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          echo "value=${{ github.sha }}-${{ matrix.os }}-${{ matrix.node }}" >> $GITHUB_OUTPUT
+
       - name: Setup node env
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           cache: yarn
+
+      - name: Parse rust-toolchain.toml
+        id: parse-toolchain
+        run: |
+          # Extract channel/version
+          CHANNEL=$(grep -o 'channel = "[^"]*"' packages/stylus/your-contract/rust-toolchain.toml | cut -d'"' -f2)
+          echo "toolchain=$CHANNEL" >> $GITHUB_OUTPUT
+
+          # Extract components (only from the components section, without quotes)
+          COMPONENTS=$(awk '/components = \[/,/\]/' packages/stylus/your-contract/rust-toolchain.toml | grep -o '"[^"]*"' | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
+          echo "components=$COMPONENTS" >> $GITHUB_OUTPUT
+
+          # Extract targets (only from the targets section, without quotes)
+          TARGETS=$(awk '/targets = \[/,/\]/' packages/stylus/your-contract/rust-toolchain.toml | grep -o '"[^"]*"' | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
+          echo "targets=$TARGETS" >> $GITHUB_OUTPUT
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ steps.parse-toolchain.outputs.toolchain }}
+          components: ${{ steps.parse-toolchain.outputs.components }}
+          target: ${{ steps.parse-toolchain.outputs.targets }}
+          override: true
+
+      - name: Install cargo-stylus
+        run: |
+          # Check if cargo-stylus is already installed and up to date
+          if command -v cargo-stylus &> /dev/null; then
+            echo "cargo-stylus already installed, checking version..."
+            cargo-stylus --version
+          else
+            echo "Installing cargo-stylus..."
+            cargo install --force cargo-stylus
+          fi
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/stylus/target
+          key: rust-${{ runner.os }}-${{ steps.cache-key.outputs.cache-key }}
+          restore-keys: |
+            rust-${{ runner.os }}-
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Cache Foundry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.foundry
+          key: foundry-${{ runner.os }}-${{ steps.cache-key.outputs.cache-key }}
+          restore-keys: |
+            foundry-${{ runner.os }}-
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -281,20 +105,8 @@ jobs:
       - name: Check typings on nextjs
         run: yarn next:check-types
 
-      - name: Run stylus lint
-        run: yarn stylus:lint
+      - name: Run stylus tests
+        run: yarn stylus:test
 
-      # - name: Run stylus tests
-      #   run: yarn stylus:test
-
-      # - name: Verify contract definitions
-      #   run: |
-      #     # Check if the TypeScript contract definitions were generated
-      #     if [ ! -f "packages/nextjs/contracts/deployedContracts.ts" ]; then
-      #       echo "Error: TypeScript contract definitions not found"
-      #       exit 1
-      #     fi
-      #     echo "Contract definitions verified!"
-
-      # - name: Build nextjs
-      #   run: yarn next:build
+      - name: Build nextjs
+        run: yarn next:build

@@ -1,0 +1,88 @@
+name: Sync Main to bulletproof-contracts for E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync-and-update:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Checkout bulletproof-contracts branch
+        run: |
+          git fetch origin
+          git checkout bulletproof-contracts
+
+      - name: Merge main into bulletproof-contracts
+        run: |
+          git merge -X theirs main --no-edit || echo "No changes to merge"
+
+      - name: Add deploy bulletproof contracts to deploy script
+        run: |
+          FILE="packages/stylus/scripts/deploy.ts"
+          if grep -q 'contract: "bulletproofs"' "$FILE"; then
+            echo "Deploy calls already present; skipping."
+          else
+            echo "Injecting deploy calls into $FILE"
+            cat > /tmp/deploy_block.txt <<'EOF'
+            await deployStylusContract({
+              contract: "bulletproofs",
+              ...deployOptions,
+            });
+            
+            await deployStylusContract({
+              contract: "counter",
+              ...deployOptions,
+            });
+            
+            await deployStylusContract({
+              contract: "signed",
+              ...deployOptions,
+            });
+            
+            await deployStylusContract({
+              contract: "unsigned",
+              ...deployOptions,
+            });
+          EOF
+            awk -v block="$(cat /tmp/deploy_block.txt)" '
+              { line[NR] = $0 }
+              END {
+                insert_line = 0
+                for (i = NR; i >= 2; i--) {
+                  if (line[i] ~ /^[[:space:]]*$/ && line[i-1] ~ /}/) { insert_line = i; break }
+                }
+                if (!insert_line) { insert_line = NR }
+                for (i = 1; i <= NR; i++) {
+                  print line[i]
+                  if (i == insert_line) { printf "%s\n\n", block }
+                }
+              }
+            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+          fi
+
+      - name: Commit and push changes (if any)
+        run: |
+          git add packages/stylus/scripts/deploy.ts
+          if [[ -n $(git status --porcelain packages/stylus/scripts/deploy.ts) ]]; then
+            git commit -m "ci: inject bulletproof deploy calls into deploy.ts"
+            git push origin bulletproof-contracts
+          else
+            echo "No changes to commit."
+          fi
