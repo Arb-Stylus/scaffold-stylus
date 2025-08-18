@@ -211,10 +211,3 @@ export function getBlockExplorerUrlFromChain(chain: Chain): string | undefined {
     chain.blockExplorers?.default?.url || chain.blockExplorers?.etherscan?.url
   );
 }
-
-// function getAliasFromNetworkName(networkName: string): string {
-//   return (
-//     Object.entries(ALIASES).find(([, alias]) => alias === networkName)?.[0] ||
-//     networkName
-//   );
-// }
