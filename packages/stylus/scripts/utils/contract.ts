@@ -41,6 +41,15 @@ export function getContractNameFromCargoToml(contractFolder: string): string {
   return parsed.package.name;
 }
 
+export function isContractHasConstructor(contractFolder: string): boolean {
+  const contractPath = path.resolve(contractFolder, "src/lib.rs");
+  if (!fs.existsSync(contractPath)) {
+    throw new Error(`lib.rs not found in contract folder: ${contractPath}`);
+  }
+  const contractContent = fs.readFileSync(contractPath, "utf8");
+  return contractContent.includes("#[constructor]");
+}
+
 export function getExportConfig(
   contractFolder?: string,
   contractName?: string,

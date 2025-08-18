@@ -1,6 +1,9 @@
 import { spawn } from "child_process";
 import { DeploymentConfig, DeployOptions } from "./type";
-import { extractGasPriceFromOutput } from "./contract";
+import {
+  extractGasPriceFromOutput,
+  isContractHasConstructor,
+} from "./contract";
 
 export async function buildDeployCommand(
   config: DeploymentConfig,
@@ -19,8 +22,15 @@ export async function buildDeployCommand(
   if (!deployOptions.verify) {
     baseCommand += ` --no-verify`;
   } else {
-    console.log("Skipping constructor args as verify is true");
-    return baseCommand;
+    if (
+      deployOptions.constructorArgs &&
+      deployOptions.constructorArgs.length > 0 &&
+      isContractHasConstructor(config.contractFolder)
+    ) {
+      throw new Error(
+        "Can not verify contract with constructor arguments. Use initialize() function instead",
+      );
+    }
   }
 
   if (
