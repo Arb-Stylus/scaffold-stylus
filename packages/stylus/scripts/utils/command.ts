@@ -28,7 +28,7 @@ export async function buildDeployCommand(
       isContractHasConstructor(config.contractFolder)
     ) {
       throw new Error(
-        "Can not verify contract with constructor arguments. Use initialize() function instead",
+        "Verification is not currently supported with constructors. Please implement and use initialize() function to initialize your contracts: Refer to readme.md for tutorial",
       );
     }
   }
