@@ -122,8 +122,8 @@ const deployedContracts = {
   },
   "421614": {
     "your-contract": {
-      address: "0x326fb9db13493c140a2a4413dc772eca56407651",
-      txHash: "0x6331e21775d0e679fcd0c59b5268a474c7c4ae315503275a7788b59ed42d80d9",
+      address: "0x67acb00301abbdc7a147ec707aa59d7e673da17f",
+      txHash: "0x03a5608c7ad1a5e92bcafd0aa277240cea1f49aa441adc8042069489f593c1f8",
       abi: [
         {
           inputs: [

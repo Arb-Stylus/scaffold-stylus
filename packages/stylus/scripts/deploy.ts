@@ -52,7 +52,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
     console.log(`🔗 Chainlink VRF Wrapper Address: ${VRF_WRAPPER_ADDRESS}`);
 
     await deployStylusContract({
-      contract: "vrf-consumer",
+      contract: "random-word-contract",
       constructorArgs: [VRF_WRAPPER_ADDRESS, 1000000, 3],
       ...deployOptions,
     });

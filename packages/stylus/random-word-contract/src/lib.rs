@@ -17,15 +17,12 @@ use alloc::vec::Vec;
 
 /// Import items from the SDK. The prelude contains common traits and macros.
 use stylus_sdk::{
-    alloy_primitives::{Address, Bytes, U256},
+    alloy_primitives::{Address, Bytes, U16, U256, U32},
     alloy_sol_types::sol,
+    call::Call,
     prelude::*,
     stylus_core::log,
 };
-
-mod chainlink_vrf_call;
-
-use chainlink_vrf_call::{calculate_request_price_native, request_random_words_in_native};
 
 // Import error and event interfaces
 sol!("./src/IErrors.sol");
@@ -46,14 +43,23 @@ sol! {
     event RandomWordFulfilled(address indexed requester, uint256 indexed requestId, string word);
 }
 
+sol_interface! {
+    interface IVRFV2PlusWrapper {
+        function calculateRequestPriceNative(uint32 _callbackGasLimit, uint32 _numWords) external view returns (uint256);
+        function requestRandomWordsInNative(uint32 _callbackGasLimit, uint16 _requestConfirmations, uint32 _numWords, bytes calldata extraArgs) external payable returns (uint256 requestId);
+        function link() external view returns (address);
+        function linkNativeFeed() external view returns (address);
+    }
+}
+
 // Define persistent storage using the Solidity ABI.
 sol_storage! {
     #[entrypoint]
     pub struct RandomWordContract {
         // Chainlink VRF configuration
         address vrf_wrapper;
-        uint256 callback_gas_limit;
-        uint256 request_confirmations;
+        uint32 callback_gas_limit;
+        uint16 request_confirmations;
 
         // Contract state
         bool is_setup;
@@ -90,9 +96,9 @@ impl RandomWordContract {
 
         // Set up VRF configuration
         self.vrf_wrapper.set(vrf_wrapper);
-        self.callback_gas_limit.set(U256::from(callback_gas_limit));
+        self.callback_gas_limit.set(U32::from(callback_gas_limit));
         self.request_confirmations
-            .set(U256::from(request_confirmations));
+            .set(U16::from(request_confirmations));
 
         // Initialize word list with some sample words
         self.initialize_word_list();
@@ -105,28 +111,7 @@ impl RandomWordContract {
 
     /// Initialize the predefined word list
     fn initialize_word_list(&mut self) {
-        let words = vec![
-            "blockchain",
-            "ethereum",
-            "stylus",
-            "arbitrum",
-            "chainlink",
-            "random",
-            "oracle",
-            "smart",
-            "contract",
-            "decentralized",
-            "consensus",
-            "validator",
-            "protocol",
-            "cryptography",
-            "digital",
-            "token",
-            "wallet",
-            "mining",
-            "staking",
-            "governance",
-        ];
+        let words = vec!["blockchain", "ethereum", "stylus", "arbitrum"];
 
         for (i, word) in words.iter().enumerate() {
             self.words.setter(U256::from(i)).set_str(word);
@@ -150,20 +135,21 @@ impl RandomWordContract {
         let gas_limit = self.callback_gas_limit.get().try_into().unwrap_or(10000u32);
         let confirmations = self.request_confirmations.get().try_into().unwrap_or(3u16);
 
+        let external_contract = IVRFV2PlusWrapper::new(self.vrf_wrapper.get());
+        let config = Call::new_in(self);
+
         // Calculate required payment
-        let required_payment = match calculate_request_price_native(
-            self.vm(),
-            self.vrf_wrapper.get(),
-            gas_limit,
-            1, // We only need 1 random word
-        ) {
-            Ok(price) => price,
-            Err(e) => {
-                return Err(RandomWordError::ChainlinkVRFError(
-                    IErrors::ErrChainlinkVRF { _0: e.into() },
-                ))
-            }
-        };
+        let required_payment =
+            match external_contract.calculate_request_price_native(config, gas_limit, 1) {
+                Ok(price) => price,
+                Err(e) => {
+                    return Err(RandomWordError::ChainlinkVRFError(
+                        IErrors::ErrChainlinkVRF {
+                            _0: Bytes::from(format!("{:?}", e)),
+                        },
+                    ))
+                }
+            };
 
         // Check payment
         if payment < required_payment {
@@ -171,19 +157,20 @@ impl RandomWordContract {
         }
 
         // Request randomness from Chainlink VRF
-        let request_id = match request_random_words_in_native(
-            self.vm(),
-            self.vrf_wrapper.get(),
-            payment,
+        let config = Call::new_in(self);
+        let request_id = match external_contract.request_random_words_in_native(
+            config,
             gas_limit,
             confirmations,
-            1,            // Number of words
-            Bytes::new(), // No extra args
+            1,
+            Bytes::new(),
         ) {
-            Ok(id) => id,
+            Ok(request_id) => request_id,
             Err(e) => {
                 return Err(RandomWordError::ChainlinkVRFError(
-                    IErrors::ErrChainlinkVRF { _0: e.into() },
+                    IErrors::ErrChainlinkVRF {
+                        _0: Bytes::from(format!("{:?}", e)),
+                    },
                 ))
             }
         };
@@ -290,20 +277,21 @@ impl RandomWordContract {
     }
 
     /// Calculate required payment for VRF request
-    pub fn calculate_request_price(&self) -> Result<U256, RandomWordError> {
+    pub fn calculate_request_price(&mut self) -> Result<U256, RandomWordError> {
         if !self.is_setup.get() {
             return Err(RandomWordError::NotSetup(IErrors::ErrNotSetup {}));
         }
 
-        match calculate_request_price_native(
-            self.vm(),
-            self.vrf_wrapper.get(),
-            self.callback_gas_limit.get().try_into().unwrap_or(10000u32),
-            1,
-        ) {
+        let gas_limit = self.callback_gas_limit.get().try_into().unwrap_or(10000u32);
+        let external_contract = IVRFV2PlusWrapper::new(self.vrf_wrapper.get());
+        let config = Call::new_in(self);
+
+        match external_contract.calculate_request_price_native(config, gas_limit, 1) {
             Ok(price) => Ok(price),
             Err(e) => Err(RandomWordError::ChainlinkVRFError(
-                IErrors::ErrChainlinkVRF { _0: e.into() },
+                IErrors::ErrChainlinkVRF {
+                    _0: Bytes::from(format!("{:?}", e)),
+                },
             )),
         }
     }
