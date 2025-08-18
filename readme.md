@@ -279,6 +279,21 @@ Check official document for detail instructions: <https://docs.arbitrum.io/stylu
 > **Note**: Arbiscan verification for Stylus contracts is still evolving. If you encounter issues, consider using the local verification method or check Arbiscan's latest documentation for Stylus-specific instructions.
 
 **Tip**: If you still want to initialize your contract, then add your own `initialize()` function and initialize it yourself
+Sample :
+
+```
+pub fn initialize(&mut self, initial_number: U256) {
+   if !self.is_initialized.get() {
+      self.number.set(initial_number);
+      self.is_initialized.set(true);
+   } else {
+      panic!("Counter already initialized");
+   }
+}
+```
+
+Then use `cast --rpc-url <your-rpc-url> --private-key <your-private-key> [deployed-contract-address] "initialize(uint256)" <initial_number>`
+Or check [`deploy_contract.ts` lines 95-118](packages/stylus/scripts/deploy_contract.ts#L95-L118) and add it to your `deploy.ts` script.
 
 </details>
 
