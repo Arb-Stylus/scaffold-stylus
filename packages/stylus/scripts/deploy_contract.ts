@@ -131,14 +131,21 @@ export default async function deployStylusContract(
         );
         console.log(output);
       } catch (error) {
-        console.error(
-          `❌ Verification failed in: ${deployOptions.contract}`,
-          error,
-        );
+        console.error(`❌ Verification failed in: ${deployOptions.contract}`);
+        if (error instanceof Error) {
+          console.error(error.message);
+        } else {
+          console.error(error);
+        }
       }
     }
   } catch (error) {
-    console.error(`❌ Deployment failed in: ${deployOptions.contract}`, error);
+    console.error(`❌ Deployment failed in: ${deployOptions.contract}`);
+    if (error instanceof Error) {
+      console.error(error.message);
+    } else {
+      console.error(error);
+    }
     process.exit(1);
   }
 }

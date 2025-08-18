@@ -1,6 +1,9 @@
 import { spawn } from "child_process";
 import { DeploymentConfig, DeployOptions } from "./type";
-import { extractGasPriceFromOutput } from "./contract";
+import {
+  extractGasPriceFromOutput,
+  isContractHasConstructor,
+} from "./contract";
 import { getRpcUrlFromChain } from "./network";
 
 export async function buildDeployCommand(
@@ -20,8 +23,15 @@ export async function buildDeployCommand(
   if (!deployOptions.verify) {
     baseCommand += ` --no-verify`;
   } else {
-    console.log("Skipping constructor args as verify is true");
-    return baseCommand;
+    if (
+      deployOptions.constructorArgs &&
+      deployOptions.constructorArgs.length > 0 &&
+      isContractHasConstructor(config.contractFolder)
+    ) {
+      throw new Error(
+        "Verification is not currently supported with constructors. Please implement and use initialize() function to initialize your contracts: Refer to readme.md for tutorial",
+      );
+    }
   }
 
   if (
@@ -76,7 +86,6 @@ export function executeCommand(
 
     let output = "";
     let errorOutput = "";
-    const outputLines: string[] = [];
     let errorLines: string[] = [];
 
     // Handle stdout
@@ -84,8 +93,6 @@ export function executeCommand(
       childProcess.stdout.on("data", (data: Buffer) => {
         const chunk = data.toString();
         output += chunk;
-        const newLines = chunk.split("\n");
-        outputLines.push(...newLines);
       });
     }
 
@@ -96,53 +103,37 @@ export function executeCommand(
         errorOutput += chunk;
         const newLines = chunk.split("\n");
         errorLines.push(...newLines);
-        // Keep only the last 5 lines
-        if (errorLines.length > 5) {
-          errorLines = errorLines.slice(-5);
+        // Keep only the last 20 lines, just for safety
+        if (errorLines.length > 20) {
+          errorLines = errorLines.slice(-20);
         }
       });
     }
 
     // Handle process completion
     childProcess.on("close", (code: number | null) => {
-      if (code === 0) {
+      // this can extract and detect errors from docker logs because it not throw error code
+      const errors = extractErrorLines(errorLines);
+
+      if (code === 0 && !errors) {
         console.log(`\n✅ ${description} completed successfully!`);
         resolve(output);
       } else {
         console.error(`\n❌ ${description} failed with exit code ${code}`);
         // Print error output starting from "project metadata hash computed on deployment" or error patterns, or all logs if not found
-        if (errorLines.length > 0) {
-          const metadataIndex = errorLines.findIndex((line) =>
-            line.includes("project metadata hash computed on deployment"),
-          );
-          const errorIndex = errorLines.findIndex((line) =>
-            line.includes("error["),
-          );
-
-          let startIndex = -1;
-          if (metadataIndex >= 0) {
-            startIndex = metadataIndex;
-          } else if (errorIndex >= 0) {
-            startIndex = errorIndex;
-          }
-
-          if (startIndex >= 0) {
-            const linesToPrint = errorLines.slice(startIndex);
-            linesToPrint.forEach((line) => {
-              if (line.trim()) console.error(line);
-            });
-          } else {
-            errorLines.forEach((line) => {
-              if (line.trim()) console.error(line);
-            });
+        if (errors) {
+          console.error(errors);
+          if (
+            !command.includes("--no-verify") &&
+            errors.includes("mismatch number of constructor arguments")
+          ) {
+            errorOutput += `\nCan not verify contract with constructor arguments.\n`;
           }
         }
-        if (errorOutput) {
-          console.error(errorOutput);
-        }
+
         reject(
           new Error(
-            `Command failed with exit code ${code}. Error output: ${errorOutput}`,
+            `Command failed with exit code ${code}. Error output: \n${errorOutput}`,
           ),
         );
       }
@@ -154,4 +145,36 @@ export function executeCommand(
       reject(error);
     });
   });
+}
+
+function extractErrorLines(errorLines: string[]): string | null {
+  let output: string = "";
+  if (errorLines.length > 0) {
+    const metadataIndex = errorLines.findIndex((line) =>
+      line.includes("project metadata hash computed on deployment"),
+    );
+    const errorIndex = errorLines.findIndex(
+      (line) =>
+        line.toLowerCase().includes("error[") ||
+        line.toLowerCase().includes("error:"),
+    );
+
+    let startIndex = -1;
+    if (metadataIndex >= 0) {
+      startIndex = metadataIndex;
+    } else if (errorIndex >= 0) {
+      startIndex = errorIndex;
+    }
+
+    if (startIndex === -1) {
+      return null;
+    }
+
+    const linesToPrint = errorLines.slice(startIndex);
+    linesToPrint.forEach((line) => {
+      if (line.trim()) output += line + "\n";
+    });
+    return output;
+  }
+  return null;
 }
