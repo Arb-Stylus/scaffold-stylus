@@ -51,6 +51,26 @@ export default async function deployScript(deployOptions: DeployOptions) {
   //   ...deployOptions,
   // });
 
+  await deployStylusContract({
+    contract: "bulletproofs",
+    ...deployOptions,
+  });
+  
+  await deployStylusContract({
+    contract: "counter",
+    ...deployOptions,
+  });
+  
+  await deployStylusContract({
+    contract: "signed",
+    ...deployOptions,
+  });
+  
+  await deployStylusContract({
+    contract: "unsigned",
+    ...deployOptions,
+  });
+
   // Print the deployed addresses
   console.log("\n\n");
   printDeployedAddresses(config.deploymentDir, config.chain.id.toString());
