@@ -1,10 +1,15 @@
 import { arbitrum, arbitrumNova, arbitrumSepolia } from "viem/chains";
 import { Address, Chain } from "viem";
-import { arbitrumNitro } from "../../../nextjs/utils/scaffold-stylus/supportedChains";
+import {
+  arbitrumNitro,
+  superposition,
+  eduChainTestnet,
+  superpositionTestnet,
+  eduChain,
+} from "../../../nextjs/utils/scaffold-stylus/supportedChains";
 import * as path from "path";
 import * as fs from "fs";
 import { config as dotenvConfig } from "dotenv";
-import { SupportedNetworkMinimal } from "./type";
 
 const envPath = path.resolve(__dirname, "../../.env");
 if (fs.existsSync(envPath)) {
@@ -16,6 +21,10 @@ export const SUPPORTED_NETWORKS: Record<string, Chain> = {
   arbitrumSepolia,
   arbitrumNitro: arbitrumNitro as Chain,
   arbitrumNova: arbitrumNova as Chain,
+  eduChainTestnet: eduChainTestnet as unknown as Chain,
+  eduChain: eduChain as unknown as Chain,
+  superposition: superposition as unknown as Chain,
+  superpositionTestnet: superpositionTestnet as Chain,
 };
 
 export const ALIASES: Record<string, string> = {
@@ -23,9 +32,21 @@ export const ALIASES: Record<string, string> = {
   sepolia: "arbitrumSepolia",
   devnet: "arbitrumNitro",
   nova: "arbitrumNova",
+  educhain_testnet: "educhainTestnet",
+  educhain: "eduChain",
+  superposition: "superposition",
+  superposition_testnet: "superpositionTestnet",
 };
 
-export function getChain(networkName: string): SupportedNetworkMinimal | null {
+// TODO: add more compatible Orbit Chains here
+export const ORBIT_CHAINS: Chain[] = [
+  eduChain as unknown as Chain,
+  eduChainTestnet as unknown as Chain,
+  superposition as unknown as Chain,
+  superpositionTestnet as Chain,
+];
+
+export function getChain(networkName: string): Chain | null {
   try {
     const actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
 
@@ -33,14 +54,7 @@ export function getChain(networkName: string): SupportedNetworkMinimal | null {
       ([key]) => key.toLowerCase() === actualNetworkName.toLowerCase(),
     );
 
-    if (chainEntry) {
-      return {
-        name: chainEntry[0],
-        alias: getAliasFromNetworkName(chainEntry[0]),
-        id: chainEntry[1].id.toString(),
-        rpcUrl: getRpcUrlFromChain(chainEntry[1]),
-      };
-    }
+    if (chainEntry) return chainEntry[1];
 
     const supportedNetworks = Object.keys(SUPPORTED_NETWORKS);
     console.warn(
@@ -75,6 +89,30 @@ export function getPrivateKey(networkName: string): string {
       } else {
         throw new Error("PRIVATE_KEY_NOVA is not set");
       }
+    case "educhaintestnet":
+      if (process.env["PRIVATE_KEY_EDUCHAIN_TESTNET"]) {
+        return process.env["PRIVATE_KEY_EDUCHAIN_TESTNET"];
+      } else {
+        throw new Error("PRIVATE_KEY_EDUCHAIN_TESTNET is not set");
+      }
+    case "educhain":
+      if (process.env["PRIVATE_KEY_EDUCHAIN"]) {
+        return process.env["PRIVATE_KEY_EDUCHAIN"];
+      } else {
+        throw new Error("PRIVATE_KEY_EDUCHAIN is not set");
+      }
+    case "superposition":
+      if (process.env["PRIVATE_KEY_SUPERPOSITION"]) {
+        return process.env["PRIVATE_KEY_SUPERPOSITION"];
+      } else {
+        throw new Error("PRIVATE_KEY_SUPERPOSITION is not set");
+      }
+    case "superpositiontestnet":
+      if (process.env["PRIVATE_KEY_SUPERPOSITION_TESTNET"]) {
+        return process.env["PRIVATE_KEY_SUPERPOSITION_TESTNET"];
+      } else {
+        throw new Error("PRIVATE_KEY_SUPERPOSITION_TESTNET is not set");
+      }
     default:
       return (
         process.env["PRIVATE_KEY"] ||
@@ -85,6 +123,7 @@ export function getPrivateKey(networkName: string): string {
 
 export const getAccountAddress = (networkName: string): Address | undefined => {
   const actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
+
   switch (actualNetworkName.toLowerCase()) {
     case "arbitrum":
       return process.env["ACCOUNT_ADDRESS_MAINNET"] as Address;
@@ -92,6 +131,14 @@ export const getAccountAddress = (networkName: string): Address | undefined => {
       return process.env["ACCOUNT_ADDRESS_SEPOLIA"] as Address;
     case "arbitrumnova":
       return process.env["ACCOUNT_ADDRESS_NOVA"] as Address;
+    case "educhaintestnet":
+      return process.env["ACCOUNT_ADDRESS_EDUCHAIN_TESTNET"] as Address;
+    case "educhain":
+      return process.env["ACCOUNT_ADDRESS_EDUCHAIN"] as Address;
+    case "superposition":
+      return process.env["ACCOUNT_ADDRESS_SUPERPOSITION"] as Address;
+    case "superpositiontestnet":
+      return process.env["ACCOUNT_ADDRESS_SUPERPOSITION_TESTNET"] as Address;
     default:
       return (
         (process.env["ACCOUNT_ADDRESS"] as Address) ||
@@ -100,7 +147,7 @@ export const getAccountAddress = (networkName: string): Address | undefined => {
   }
 };
 
-function getRpcUrlFromChain(chain: Chain): string {
+export function getRpcUrlFromChain(chain: Chain): string {
   //Prefer user rpc url from env
   switch (chain.id) {
     case arbitrum.id:
@@ -116,6 +163,26 @@ function getRpcUrlFromChain(chain: Chain): string {
     case arbitrumNova.id:
       if (process.env["RPC_URL_NOVA"]) {
         return process.env["RPC_URL_NOVA"];
+      }
+      break;
+    case eduChainTestnet.id:
+      if (process.env["RPC_URL_EDUCHAIN_TESTNET"]) {
+        return process.env["RPC_URL_EDUCHAIN_TESTNET"];
+      }
+      break;
+    case eduChain.id:
+      if (process.env["RPC_URL_EDUCHAIN"]) {
+        return process.env["RPC_URL_EDUCHAIN"];
+      }
+      break;
+    case superposition.id:
+      if (process.env["RPC_URL_SUPERPOSITION"]) {
+        return process.env["RPC_URL_SUPERPOSITION"];
+      }
+      break;
+    case superpositionTestnet.id:
+      if (process.env["RPC_URL_SUPERPOSITION_TESTNET"]) {
+        return process.env["RPC_URL_SUPERPOSITION_TESTNET"];
       }
       break;
     default:
@@ -139,9 +206,8 @@ function getRpcUrlFromChain(chain: Chain): string {
   throw new Error(`No RPC URL found for chain ${chain.name}`);
 }
 
-function getAliasFromNetworkName(networkName: string): string {
+export function getBlockExplorerUrlFromChain(chain: Chain): string | undefined {
   return (
-    Object.entries(ALIASES).find(([, alias]) => alias === networkName)?.[0] ||
-    networkName
+    chain.blockExplorers?.default?.url || chain.blockExplorers?.etherscan?.url
   );
 }

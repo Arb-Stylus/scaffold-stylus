@@ -6,5 +6,5 @@ pub extern "C" fn main() {}
 
 #[cfg(feature = "export-abi")]
 fn main() {
-	counter::print_from_args();
+    counter::print_from_args();
 }

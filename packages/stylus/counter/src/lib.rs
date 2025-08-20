@@ -38,12 +38,22 @@ sol_storage! {
     #[entrypoint]
     pub struct Counter {
         uint256 number;
+        bool is_initialized;
     }
 }
 
 /// Declare that `Counter` is a contract with the following external methods.
 #[public]
 impl Counter {
+    pub fn initialize(&mut self, initial_number: U256) {
+        if !self.is_initialized.get() {
+            self.number.set(initial_number);
+            self.is_initialized.set(true);
+        } else {
+            panic!("Counter already initialized");
+        }
+    }
+
     /// Gets the number from storage.
     pub fn number(&self) -> U256 {
         self.number.get()

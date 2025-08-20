@@ -1,5 +1,5 @@
 import { defineChain } from "viem";
-import { arbitrum, arbitrumSepolia, arbitrumNova } from "viem/chains";
+import { arbitrum, arbitrumSepolia, arbitrumNova, eduChainTestnet, eduChain, superposition } from "viem/chains";
 
 const arbitrumNitro = defineChain({
   id: 412346,
@@ -42,4 +42,39 @@ const arbitrumNitro = defineChain({
   ],
 });
 
-export { arbitrum, arbitrumSepolia, arbitrumNova, arbitrumNitro };
+const superpositionTestnet = defineChain({
+  id: 98985,
+  name: "Superposition Testnet",
+  network: "superposition-testnet",
+  nativeCurrency: {
+    name: "SPN",
+    symbol: "SPN",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://testnet-rpc.superposition.so/"],
+    },
+    public: {
+      http: ["https://testnet-rpc.superposition.so/"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "Superposition Testnet Explorer",
+      url: "https://testnet-explorer.superposition.so/",
+    },
+  },
+  testnet: true,
+});
+
+export {
+  arbitrum,
+  arbitrumSepolia,
+  arbitrumNova,
+  arbitrumNitro,
+  superposition,
+  eduChainTestnet,
+  superpositionTestnet,
+  eduChain,
+};
