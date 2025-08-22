@@ -12,30 +12,35 @@
 #[macro_use]
 extern crate alloc;
 
-use alloc::string::String;
+//use alloc::string::String;
 use alloc::vec::Vec;
 
 /// Import items from the SDK. The prelude contains common traits and macros.
 use stylus_sdk::{
     alloy_primitives::{Address, Bytes, U16, U256, U32},
-    alloy_sol_types::sol,
-    call::Call,
+    alloy_sol_types::{sol, SolError},
+    //call::Call,
     prelude::*,
     stylus_core::log,
 };
 
-// Import error and event interfaces
-sol!("./src/IErrors.sol");
+#[macro_use]
+pub mod errors;
+use errors::*;
+mod chainlink_vrf_call;
 
-// Define contract error types
-#[derive(SolidityError)]
-pub enum RandomWordError {
-    NotSetup(IErrors::ErrNotSetup),
-    AlreadySetup(IErrors::ErrAlreadySetup),
-    InsufficientPayment(IErrors::ErrNoValue),
-    ChainlinkVRFError(IErrors::ErrChainlinkVRF),
-    InvalidRequest(IErrors::ErrInvalidRecipient),
-}
+// // Import error and event interfaces
+// sol!("./src/IErrors.sol");
+
+// // Define contract error types
+// #[derive(SolidityError)]
+// pub enum RandomWordError {
+//     NotSetup(IErrors::ErrNotSetup),
+//     AlreadySetup(IErrors::ErrAlreadySetup),
+//     InsufficientPayment(IErrors::ErrNoValue),
+//     ChainlinkVRFError(IErrors::ErrChainlinkVRF),
+//     InvalidRequest(IErrors::ErrInvalidRecipient),
+// }
 
 // Define the RandomWordRequested and Fulfilled events
 sol! {
@@ -43,14 +48,14 @@ sol! {
     event RandomWordFulfilled(address indexed requester, uint256 indexed requestId, uint256 word);
 }
 
-sol_interface! {
-    interface IVRFV2PlusWrapper {
-        function calculateRequestPriceNative(uint32 _callbackGasLimit, uint32 _numWords) external view returns (uint256);
-        function requestRandomWordsInNative(uint32 _callbackGasLimit, uint16 _requestConfirmations, uint32 _numWords, bytes calldata extraArgs) external payable returns (uint256 requestId);
-        function link() external view returns (address);
-        function linkNativeFeed() external view returns (address);
-    }
-}
+// sol_interface! {
+//     interface IVRFV2PlusWrapper {
+//         function calculateRequestPriceNative(uint32 _callbackGasLimit, uint32 _numWords) external view returns (uint256);
+//         function requestRandomWordsInNative(uint32 _callbackGasLimit, uint16 _requestConfirmations, uint32 _numWords, bytes calldata extraArgs) external payable returns (uint256 requestId);
+//         function link() external view returns (address);
+//         function linkNativeFeed() external view returns (address);
+//     }
+// }
 
 // Define persistent storage using the Solidity ABI.
 sol_storage! {
@@ -84,11 +89,9 @@ impl RandomWordContract {
         vrf_wrapper: Address,
         callback_gas_limit: u32,
         request_confirmations: u16,
-    ) -> Result<(), RandomWordError> {
+    ) -> Result<(), Vec<u8>> {
         // Check if already setup
-        if self.is_setup.get() {
-            return Err(RandomWordError::AlreadySetup(IErrors::ErrAlreadySetup {}));
-        }
+        require!(self.is_setup.get(), ErrAlreadySetup {});
 
         // Set up VRF configuration
         self.vrf_wrapper.set(vrf_wrapper);
@@ -104,11 +107,9 @@ impl RandomWordContract {
 
     /// Request a random word from Chainlink VRF
     #[payable]
-    pub fn request_random_word(&mut self) -> Result<U256, RandomWordError> {
+    pub fn request_random_word(&mut self) -> Result<U256, Vec<u8>> {
         // Check if contract is setup
-        if !self.is_setup.get() {
-            return Err(RandomWordError::NotSetup(IErrors::ErrNotSetup {}));
-        }
+        require!(!self.is_setup.get(), ErrNotSetup {});
 
         let sender = self.vm().msg_sender();
         let payment = self.vm().msg_value();
@@ -117,31 +118,34 @@ impl RandomWordContract {
         let gas_limit = self.callback_gas_limit.get().try_into().unwrap_or(10000u32);
         let confirmations = self.request_confirmations.get().try_into().unwrap_or(3u16);
 
-        let external_contract = IVRFV2PlusWrapper::new(self.vrf_wrapper.get());
-        let config = Call::new_in(self);
+        //let external_contract = IVRFV2PlusWrapper::new(self.vrf_wrapper.get());
+        //let config = Call::new_in(self);
 
         // Calculate required payment
-        let required_payment =
-            match external_contract.calculate_request_price_native(config, gas_limit, 1) {
-                Ok(price) => price,
-                Err(e) => {
-                    return Err(RandomWordError::ChainlinkVRFError(
-                        IErrors::ErrChainlinkVRF {
-                            _0: Bytes::from(format!("{:?}", e)),
-                        },
-                    ))
+        let required_payment = match chainlink_vrf_call::calculate_request_price_native(
+            self.vm(),
+            self.vrf_wrapper.get(),
+            gas_limit,
+            1,
+        ) {
+            Ok(price) => price,
+            Err(e) => {
+                return Err(ErrChainlinkVRF {
+                    _0: Bytes::from(format!("{:?}", e)),
                 }
-            };
+                .abi_encode());
+            }
+        };
 
         // Check payment
-        if payment < required_payment {
-            return Err(RandomWordError::InsufficientPayment(IErrors::ErrNoValue {}));
-        }
+        require!(payment >= required_payment, ErrNoValue {});
 
         // Request randomness from Chainlink VRF
-        let config = Call::new_in(self);
-        let request_id = match external_contract.request_random_words_in_native(
-            config,
+        //let config = Call::new_in(self);
+        let request_id = match chainlink_vrf_call::request_random_words_in_native(
+            self.vm(),
+            self.vrf_wrapper.get(),
+            payment,
             gas_limit,
             confirmations,
             1,
@@ -149,11 +153,10 @@ impl RandomWordContract {
         ) {
             Ok(request_id) => request_id,
             Err(e) => {
-                return Err(RandomWordError::ChainlinkVRFError(
-                    IErrors::ErrChainlinkVRF {
-                        _0: Bytes::from(format!("{:?}", e)),
-                    },
-                ))
+                return Err(ErrChainlinkVRF {
+                    _0: Bytes::from(format!("{:?}", e)),
+                }
+                .abi_encode());
             }
         };
 
@@ -184,15 +187,14 @@ impl RandomWordContract {
         &mut self,
         request_id: U256,
         random_words: Vec<U256>,
-    ) -> Result<(), RandomWordError> {
+    ) -> Result<(), Vec<u8>> {
         // Check if request exists
-        if self.pending_requests.get(request_id) == U256::ZERO {
-            return Err(RandomWordError::InvalidRequest(
-                IErrors::ErrInvalidRecipient {
-                    sender: self.vm().msg_sender(),
-                },
-            ));
-        }
+        require!(
+            self.pending_requests.get(request_id) == U256::ZERO,
+            ErrInvalidRecipient {
+                sender: self.vm().msg_sender(),
+            }
+        );
 
         // Get the original requester
         let requester = self.request_to_sender.get(request_id);
