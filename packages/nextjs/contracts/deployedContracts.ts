@@ -7,8 +7,8 @@ import { GenericContractsDeclaration } from "../utils/scaffold-eth/contract";
 const deployedContracts = {
   "421614": {
     "your-contract": {
-      address: "0xaad3459ad865bc1278ac1e04bc77519094d3a2e5",
-      txHash: "0xc64eb12edfe1ac8e0384c5666e22e3abb41e12b3eb2b99c18f2d9a0e27da4e5d",
+      address: "0x08961372117ba89cac48ea7396521f8ee7bc2137",
+      txHash: "0xf4558869299157450c6a4408d05711df12c68cc03c8b6d2085d2fa7c32fbbbf1",
       abi: [
         {
           inputs: [
@@ -17,20 +17,9 @@ const deployedContracts = {
               name: "contract_address",
               type: "address",
             },
-            {
-              internalType: "uint256",
-              name: "request_id",
-              type: "uint256",
-            },
           ],
           name: "callView",
-          outputs: [
-            {
-              internalType: "bool",
-              name: "",
-              type: "bool",
-            },
-          ],
+          outputs: [],
           stateMutability: "nonpayable",
           type: "function",
         },
