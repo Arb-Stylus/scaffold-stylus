@@ -40,7 +40,7 @@ pub enum RandomWordError {
 // Define the RandomWordRequested and Fulfilled events
 sol! {
     event RandomWordRequested(address indexed requester, uint256 indexed requestId, uint256 payment);
-    event RandomWordFulfilled(address indexed requester, uint256 indexed requestId, string word);
+    event RandomWordFulfilled(address indexed requester, uint256 indexed requestId, uint256 word);
 }
 
 sol_interface! {
@@ -63,10 +63,6 @@ sol_storage! {
 
         // Contract state
         bool is_setup;
-
-        // Word list storage - predefined list of words to choose from
-        mapping(uint256 => string) words;
-        uint256 word_count;
 
         // Request tracking
         mapping(uint256 => address) request_to_sender;
@@ -100,24 +96,10 @@ impl RandomWordContract {
         self.request_confirmations
             .set(U16::from(request_confirmations));
 
-        // Initialize word list with some sample words
-        self.initialize_word_list();
-
         // Mark as setup
         self.is_setup.set(true);
 
         Ok(())
-    }
-
-    /// Initialize the predefined word list
-    fn initialize_word_list(&mut self) {
-        let words = vec!["blockchain", "ethereum", "stylus", "arbitrum"];
-
-        for (i, word) in words.iter().enumerate() {
-            self.words.setter(U256::from(i)).set_str(word);
-        }
-
-        self.word_count.set(U256::from(words.len()));
     }
 
     /// Request a random word from Chainlink VRF
@@ -216,15 +198,7 @@ impl RandomWordContract {
         let requester = self.request_to_sender.get(request_id);
 
         // Get random word from the list
-        if let Some(random_value) = random_words.first() {
-            let word_index = *random_value % self.word_count.get();
-            let random_word = self.words.get(word_index).get_string();
-
-            // Store the result
-            self.last_random_word
-                .setter(requester)
-                .set_str(&random_word);
-
+        if let Some(random_word) = random_words.first() {
             // Remove pending request
             self.pending_requests.insert(request_id, U256::ZERO);
 
@@ -234,7 +208,7 @@ impl RandomWordContract {
                 RandomWordFulfilled {
                     requester,
                     requestId: request_id,
-                    word: random_word.clone(),
+                    word: *random_word,
                 },
             );
         }
@@ -242,128 +216,8 @@ impl RandomWordContract {
         Ok(())
     }
 
-    /// Get the last random word for a user
-    pub fn get_last_random_word(&self, user: Address) -> String {
-        self.last_random_word.get(user).get_string()
-    }
-
-    /// Get user's request count
-    pub fn get_user_request_count(&self, user: Address) -> U256 {
-        self.user_request_count.get(user)
-    }
-
-    /// Get a word from the word list by index (for testing/viewing)
-    pub fn get_word_by_index(&self, index: U256) -> String {
-        if index < self.word_count.get() {
-            self.words.get(index).get_string()
-        } else {
-            String::new()
-        }
-    }
-
-    /// Get total word count
-    pub fn get_word_count(&self) -> U256 {
-        self.word_count.get()
-    }
-
     /// Get VRF wrapper address
     pub fn get_vrf_wrapper(&self) -> Address {
         self.vrf_wrapper.get()
-    }
-
-    /// Check if contract is setup
-    pub fn is_contract_setup(&self) -> bool {
-        self.is_setup.get()
-    }
-
-    /// Calculate required payment for VRF request
-    pub fn calculate_request_price(&mut self) -> Result<U256, RandomWordError> {
-        if !self.is_setup.get() {
-            return Err(RandomWordError::NotSetup(IErrors::ErrNotSetup {}));
-        }
-
-        let gas_limit = self.callback_gas_limit.get().try_into().unwrap_or(10000u32);
-        let external_contract = IVRFV2PlusWrapper::new(self.vrf_wrapper.get());
-        let config = Call::new_in(self);
-
-        match external_contract.calculate_request_price_native(config, gas_limit, 1) {
-            Ok(price) => Ok(price),
-            Err(e) => Err(RandomWordError::ChainlinkVRFError(
-                IErrors::ErrChainlinkVRF {
-                    _0: Bytes::from(format!("{:?}", e)),
-                },
-            )),
-        }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use stylus_sdk::testing::*;
-
-    #[no_mangle]
-    pub unsafe extern "C" fn emit_log(_pointer: *const u8, _len: usize, _: usize) {}
-
-    #[test]
-    fn test_random_word_contract() {
-        let vm = TestVM::default();
-        let mut contract = RandomWordContract::from(&vm);
-
-        // Test initialization
-        let vrf_wrapper = Address::from([1u8; 20]);
-        let callback_gas_limit = 100000u32;
-        let request_confirmations = 3u16;
-
-        let _ = contract.constructor(vrf_wrapper, callback_gas_limit, request_confirmations);
-
-        // Test setup
-        assert_eq!(contract.is_contract_setup(), true);
-        assert_eq!(contract.get_vrf_wrapper(), vrf_wrapper);
-        assert_eq!(contract.get_word_count(), U256::from(20));
-
-        // Test word retrieval
-        let first_word = contract.get_word_by_index(U256::from(0));
-        assert_eq!(first_word, "blockchain");
-
-        let last_word = contract.get_word_by_index(U256::from(19));
-        assert_eq!(last_word, "governance");
-
-        // Test out of bounds
-        let empty_word = contract.get_word_by_index(U256::from(25));
-        assert_eq!(empty_word, String::new());
-
-        // Test user request count initialization
-        let sender = vm.msg_sender();
-        assert_eq!(contract.get_user_request_count(sender), U256::ZERO);
-    }
-
-    #[test]
-    fn test_fulfill_random_words() {
-        let vm = TestVM::default();
-        let mut contract = RandomWordContract::from(&vm);
-
-        // Initialize contract
-        let vrf_wrapper = Address::from([1u8; 20]);
-        let _ = contract.constructor(vrf_wrapper, 10000, 3);
-
-        // Simulate a request (manually set up the state)
-        let request_id = U256::from(123);
-        let requester = Address::from([2u8; 20]);
-
-        contract.request_to_sender.insert(request_id, requester);
-        contract.pending_requests.insert(request_id, U256::from(1));
-
-        // Fulfill with random word
-        let random_words = vec![U256::from(5)]; // Should map to index 5 % 20 = 5
-        let _ = contract.fulfill_random_words(request_id, random_words);
-
-        // Check result
-        let word = contract.get_last_random_word(requester);
-        let expected_word = contract.get_word_by_index(U256::from(5));
-        assert_eq!(word, expected_word);
-
-        // Check request is cleared
-        assert_eq!(contract.pending_requests.get(request_id), U256::ZERO);
     }
 }

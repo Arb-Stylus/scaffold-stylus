@@ -32,11 +32,11 @@ export default async function deployScript(deployOptions: DeployOptions) {
   console.log(`\n`);
 
   // Deploy a single contract
-  await deployStylusContract({
-    contract: "your-contract",
-    constructorArgs: [config.deployerAddress!],
-    ...deployOptions,
-  });
+//   await deployStylusContract({
+//     contract: "your-contract",
+//     constructorArgs: [config.deployerAddress!],
+//     ...deployOptions,
+//   });
 
   if (
     String(config.chain?.id || arbitrumNitro.id) ===
