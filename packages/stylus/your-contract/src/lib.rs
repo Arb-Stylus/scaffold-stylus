@@ -66,15 +66,14 @@ impl YourContract {
         //Ok(())
     }
 
+    /// @param contract_address - The address of the external vrf consumer contract: https://github.com/gianalarcon/vrf-consumer/blob/main/packages/hardhat/contracts/DirectFundingConsumer.sol#L53
     pub fn call_view(
         &mut self,
-        contract_address: Address, // 0xcdf146AcBA25d0FABaD31E65AbC2a29E6AFc02b5
-        request_id: U256, //70393510205840816497009584010130973719387944079749340305195853459117421426717
-    ) -> Result<bool, Vec<u8>> {
+        contract_address: Address, // 0x60212a95052DCf783E45B6e3Ee90A72391bcdf2F
+    ) -> Result<(), Vec<u8>> {
         let external_contract = IDirectFundingConsumer::new(contract_address);
         //let config = context::Call::new_in(self);
-        let result = external_contract.get_request_status(self, request_id)?;
-        let fulfilled = result.1;
-        Ok(fulfilled)
+        let _ = external_contract.request_random_words(self, true)?;
+        Ok(())
     }
 }
