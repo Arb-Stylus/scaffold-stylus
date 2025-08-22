@@ -4,6 +4,39 @@
  */
 import { GenericContractsDeclaration } from "../utils/scaffold-eth/contract";
 
-const deployedContracts = {} as const;
+const deployedContracts = {
+  "421614": {
+    "your-contract": {
+      address: "0xaad3459ad865bc1278ac1e04bc77519094d3a2e5",
+      txHash: "0xc64eb12edfe1ac8e0384c5666e22e3abb41e12b3eb2b99c18f2d9a0e27da4e5d",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "contract_address",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "request_id",
+              type: "uint256",
+            },
+          ],
+          name: "callView",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ],
+    },
+  },
+} as const;
 
 export default deployedContracts satisfies GenericContractsDeclaration;
