@@ -7,8 +7,8 @@ import { GenericContractsDeclaration } from "../utils/scaffold-eth/contract";
 const deployedContracts = {
   "421614": {
     "your-contract": {
-      address: "0x08961372117ba89cac48ea7396521f8ee7bc2137",
-      txHash: "0xf4558869299157450c6a4408d05711df12c68cc03c8b6d2085d2fa7c32fbbbf1",
+      address: "0xb3daa40276909e922e0e11f6fbe2025017401ab8",
+      txHash: "0xf802de2015e2e4a2dd8127746098a7bec17b43d38423922105b2fb082da3f291",
       abi: [
         {
           inputs: [
@@ -18,8 +18,145 @@ const deployedContracts = {
               type: "address",
             },
           ],
-          name: "callView",
-          outputs: [],
+          name: "callViewGetLastRequestId",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "contract_address",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "request_id",
+              type: "uint256",
+            },
+          ],
+          name: "callViewGetRequestStatus",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "contract_address",
+              type: "address",
+            },
+          ],
+          name: "callWriteRequestRandomNumber",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ],
+    },
+    "vrf-consumer": {
+      address: "0x948bbd44964fcbf6df5493a30e5181ceff779a50",
+      txHash: "0x7559d55d52d2e2c199804e2a67252b0378b88dc6b8910b8e92da90446b0ca3ca",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "contract_address",
+              type: "address",
+            },
+          ],
+          name: "callViewGetLastRequestId",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "contract_address",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "request_id",
+              type: "uint256",
+            },
+          ],
+          name: "callViewGetRequestStatus",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "contract_address",
+              type: "address",
+            },
+          ],
+          name: "callWriteRequestRandomNumber",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
           stateMutability: "nonpayable",
           type: "function",
         },

@@ -1,10 +1,10 @@
 //!
-//! YourContract in Stylus Rust
+//! VRFConsumer in Stylus Rust
 //!
 //! A smart contract that allows changing a state variable of the contract and tracking the changes
 //! It also allows the owner to withdraw the Ether in the contract
 //!
-//! This is the Stylus Rust equivalent of the Solidity YourContract.
+//! This is the Stylus Rust equivalent of the Solidity VRFConsumer.
 //!
 
 // Allow `cargo stylus export-abi` to generate a main function.
@@ -19,24 +19,15 @@ use alloc::vec::Vec;
 /// Import items from the SDK. The prelude contains common traits and macros.
 use stylus_sdk::{
     alloy_primitives::{Address, U256},
-    alloy_sol_types::sol,
     prelude::*,
 };
 
-// Define the GreetingChange event
-sol! {
-    event GreetingChange(address indexed greetingSetter, string newGreeting, bool premium, uint256 value);
-}
-
 // Define persistent storage using the Solidity ABI.
-// `YourContract` will be the entrypoint.
+// `VRFConsumer` will be the entrypoint.
 sol_storage! {
     #[entrypoint]
-    pub struct YourContract {
-        string greeting;
-        bool premium;
-        uint256 total_counter;
-        mapping(address => uint256) user_greeting_counter;
+    pub struct VRFConsumer {
+
     }
 }
 
@@ -50,30 +41,41 @@ sol_interface! {
     )
         external
         view
-        returns (uint256 paid, bool fulfilled, uint256[] memory randomWords);
-        function withdrawNative(uint256 amount) external;
+        returns (uint256 paid, bool fulfilled, uint256 randomWord);
+        function getLastRequestId() external view returns (uint256);
     }
 }
 
 /// Declare that `VRFConsumer` is a contract with the following external methods.
 #[public]
-impl YourContract {
-    #[constructor]
-    pub fn constructor(&mut self) {
-        self.greeting.set_str("Building Unstoppable Apps!!!");
-        self.premium.set(false);
-        self.total_counter.set(U256::ZERO);
-        //Ok(())
+impl VRFConsumer {
+    /// @param contract_address - The address of the external vrf consumer contract: https://github.com/gianalarcon/vrf-consumer/blob/main/packages/hardhat/contracts/DirectFundingConsumer.sol#L53
+    pub fn call_write_request_random_number(
+        &mut self,
+        contract_address: Address, // 0xeEA5eC3da1ED9b3479Cb2f0834f4FD918eBCfCC2
+    ) -> Result<U256, Vec<u8>> {
+        let external_contract = IDirectFundingConsumer::new(contract_address);
+        let request_id = external_contract.request_random_words(&mut *self, true)?;
+        Ok(request_id)
     }
 
-    /// @param contract_address - The address of the external vrf consumer contract: https://github.com/gianalarcon/vrf-consumer/blob/main/packages/hardhat/contracts/DirectFundingConsumer.sol#L53
-    pub fn call_view(
-        &mut self,
-        contract_address: Address, // 0x60212a95052DCf783E45B6e3Ee90A72391bcdf2F
-    ) -> Result<(), Vec<u8>> {
+    pub fn call_view_get_request_status(
+        &self,
+        contract_address: Address,
+        request_id: U256,
+    ) -> Result<(U256, bool, U256), Vec<u8>> {
         let external_contract = IDirectFundingConsumer::new(contract_address);
-        //let config = context::Call::new_in(self);
-        let _ = external_contract.request_random_words(self, true)?;
-        Ok(())
+        let (paid, fulfilled, random_word) =
+            external_contract.get_request_status(self, request_id)?;
+        Ok((paid, fulfilled, random_word))
+    }
+
+    pub fn call_view_get_last_request_id(
+        &self,
+        contract_address: Address,
+    ) -> Result<U256, Vec<u8>> {
+        let external_contract = IDirectFundingConsumer::new(contract_address);
+        let last_request_id = external_contract.get_last_request_id(self)?;
+        Ok(last_request_id)
     }
 }

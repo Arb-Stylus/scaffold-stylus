@@ -31,7 +31,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
 
   // Deploy a single contract
   await deployStylusContract({
-    contract: "your-contract",
+    contract: "vrf-consumer",
     constructorArgs: [],
     ...deployOptions,
   });

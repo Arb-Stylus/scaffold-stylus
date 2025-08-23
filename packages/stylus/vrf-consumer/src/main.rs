@@ -6,5 +6,5 @@ pub extern "C" fn main() {}
 
 #[cfg(feature = "export-abi")]
 fn main() {
-    your_contract::print_from_args();
+    vrf_consumer::print_from_args();
 }

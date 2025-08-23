@@ -1,5 +1,5 @@
 [package]
-name = "your-contract"
+name = "vrf-consumer"
 version = "0.1.11"
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -31,7 +31,7 @@ debug = ["stylus-sdk/debug"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "your-contract"
+name = "vrf-consumer"
 path = "src/main.rs"
 
 [lib]
