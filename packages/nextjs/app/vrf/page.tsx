@@ -31,7 +31,7 @@ const VRFPage: NextPage = () => {
     contractName: "vrf-consumer",
   });
 
-  const { data: lastRequestId } = useScaffoldReadContract({
+  const { data: lastRequestId, refetch: refetchLastRequestId } = useScaffoldReadContract({
     contractName: "vrf-consumer",
     functionName: "callViewGetLastRequestId",
     args: [vrfConsumerAddress],
@@ -178,11 +178,14 @@ const VRFPage: NextPage = () => {
 
               {connectedAddress ? (
                 <button
-                  className={`btn btn-primary w-full ${isRequestingRandom ? "loading" : ""}`}
+                  className="btn btn-primary w-full"
                   onClick={handleRequestRandomWords}
                   disabled={isRequestingRandom || !vrfConsumerAddress}
                 >
-                  {isRequestingRandom ? "Requesting..." : "Request Random Words"}
+                  <span className="flex items-center gap-2">
+                    {isRequestingRandom && <span className="loading loading-spinner loading-sm"></span>}
+                    Request Random Words
+                  </span>
                 </button>
               ) : (
                 <div className="alert alert-warning">
@@ -238,6 +241,7 @@ const VRFPage: NextPage = () => {
                             ? `${lastRequestId.toString().slice(0, 6)}...${lastRequestId.toString().slice(-4)}`
                             : lastRequestId.toString()}
                         </code>
+
                         <button
                           className="btn btn-xs btn-ghost"
                           onClick={() => navigator.clipboard.writeText(lastRequestId.toString())}
@@ -246,6 +250,13 @@ const VRFPage: NextPage = () => {
                           📋
                         </button>
                       </div>
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        onClick={() => refetchLastRequestId()}
+                        title="Refresh latest request ID"
+                      >
+                        🔄
+                      </button>
                       <button className="btn btn-sm btn-outline" onClick={handleCheckStatus}>
                         Check Status
                       </button>
