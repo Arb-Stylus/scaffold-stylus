@@ -88,9 +88,19 @@ const VRFPage: NextPage = () => {
           <div>
             <h3 className="font-bold">Network Compatibility Notice</h3>
             <div className="text-xs">
-              Chainlink VRF contracts are only available on <strong>Sepolia Testnet</strong> and{" "}
-              <strong>Ethereum Mainnet</strong>. Make sure you&apos;re connected to one of these networks to interact
-              with VRF services.
+              Chainlink VRF contracts are only available on <strong>Arbitrum Sepolia</strong> and{" "}
+              <strong>Arbitrum One</strong>. Make sure you&apos;re connected to one of these networks to interact with
+              VRF services.
+            </div>
+            <div className="text-xs mt-2 p-2 rounded  border-black border">
+              <strong>Setup (after you deploy the contracts):</strong> Update your{" "}
+              <code className="bg-base-300 px-1 rounded">scaffold.config.ts</code> to include{" "}
+              <code className="bg-base-300 px-1 rounded">chains.arbitrumSepolia</code> and/or{" "}
+              <code className="bg-base-300 px-1 rounded">chains.arbitrum</code> in the{" "}
+              <code className="bg-base-300 px-1 rounded">targetNetworks</code> array.
+              <br />
+              <br />
+              <strong>Note:</strong> The VRF Consumer contract is deployed on Arbitrum Sepolia and Arbitrum One.
             </div>
           </div>
         </div>
