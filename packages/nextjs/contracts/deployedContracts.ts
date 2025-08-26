@@ -85,8 +85,8 @@ const deployedContracts = {
       ],
     },
     "vrf-consumer": {
-      address: "0x948bbd44964fcbf6df5493a30e5181ceff779a50",
-      txHash: "0x7559d55d52d2e2c199804e2a67252b0378b88dc6b8910b8e92da90446b0ca3ca",
+      address: "0x8d8321382b8e2a827a7d482f8b3f72d50796bc90",
+      txHash: "0x71bc8f93ca2f45679d90072043eb4ace6194f1befb08e2a4cd4a3e49d885745a",
       abi: [
         {
           inputs: [

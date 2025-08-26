@@ -33,9 +33,7 @@ sol_storage! {
 
 sol_interface! {
     interface IDirectFundingConsumer {
-        function requestRandomWords(
-        bool enableNativePayment
-    ) external returns (uint256);
+        function requestRandomWords() external returns (uint256);
         function getRequestStatus(
         uint256 _requestId
     )
@@ -49,13 +47,13 @@ sol_interface! {
 /// Declare that `VRFConsumer` is a contract with the following external methods.
 #[public]
 impl VRFConsumer {
-    /// @param contract_address - The address of the external vrf consumer contract: https://github.com/gianalarcon/vrf-consumer/blob/main/packages/hardhat/contracts/DirectFundingConsumer.sol#L53
+    /// @param contract_address - The address of the external vrf consumer contract: https://github.com/gianalarcon/vrf-consumer/blob/main/packages/hardhat/contracts/DirectFundingConsumer
     pub fn call_write_request_random_number(
         &mut self,
         contract_address: Address, // 0xeEA5eC3da1ED9b3479Cb2f0834f4FD918eBCfCC2
     ) -> Result<U256, Vec<u8>> {
         let external_contract = IDirectFundingConsumer::new(contract_address);
-        let request_id = external_contract.request_random_words(&mut *self, true)?;
+        let request_id = external_contract.request_random_words(&mut *self)?;
         Ok(request_id)
     }
 
