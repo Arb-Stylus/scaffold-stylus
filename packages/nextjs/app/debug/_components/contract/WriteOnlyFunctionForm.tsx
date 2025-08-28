@@ -53,7 +53,6 @@ export const WriteOnlyFunctionForm = ({
           abi: abi,
           args: getParsedContractFunctionArgs(form),
           value: BigInt(txValue),
-          gas: BigInt(10000000),
         };
         await simulateContractWriteAndNotifyError({ wagmiConfig, writeContractParams: writeContractObj });
 
