@@ -19,28 +19,20 @@ use alloc::vec::Vec;
 /// Import items from the SDK. The prelude contains common traits and macros.
 use stylus_sdk::{
     alloy_primitives::{Address, Bytes, U16, U256, U32},
-    //stylus_core::calls::context::Call,
-    call::Call, // Import Call from stylus_sdk::call, not from prelude
-    msg,
+    alloy_sol_types::sol,
+    call::Call,
+    evm, msg,
     prelude::*,
 };
-
-// Define the RequestStatus struct
-//#[derive(SolidityType)]
-// pub struct RequestStatus {
-//     pub paid: U256,
-//     pub fulfilled: bool,
-//     pub random_words: Vec<U256>,
-// }
 
 // Define persistent storage using the Solidity ABI.
 sol_storage! {
     #[entrypoint]
     pub struct DirectFundingConsumer {
         address i_vrf_v2_plus_wrapper;
-        mapping(uint256 => uint256) s_requests_paid;
+        mapping(uint256 => uint256) s_requests_paid; // store the amount paid for request random words
         mapping(uint256 => uint256) s_requests_value; // store random word returned
-        mapping(uint256 => bool) s_requests_fulfilled; // store if request was fulfilled (needed as the transaction may have failed)
+        mapping(uint256 => bool) s_requests_fulfilled; // store if request was fulfilled
         uint256[] request_ids;
         uint256 last_request_id;
         uint32 callback_gas_limit;
@@ -57,24 +49,27 @@ sol_interface! {
             uint32 _callbackGasLimit,
             uint16 _requestConfirmations,
             uint32 _numWords,
-            bytes calldata _extraArgs
+            bytes calldata extraArgs
         ) external payable returns (uint256 requestId);
     }
 }
 
-// // Define events
-// sol_interface! {
-//     event RequestSent(uint256 indexed requestId, uint32 numWords);
-//     event RequestFulfilled(uint256 indexed requestId, uint256[] randomWords, uint256 payment);
-//     event Received(address indexed sender, uint256 value);
-// }
+// Define events
+sol! {
+    event RequestSent(uint256 indexed requestId, uint32 numWords);
+    event RequestFulfilled(uint256 indexed requestId, uint256[] randomWords, uint256 payment);
+    event Received(address indexed sender, uint256 value);
+}
 
-// // Define custom errors
-// sol_interface! {
-//     error OnlyVRFWrapperCanFulfill(address have, address want);
-//     error RequestNotFound();
-//     error WithdrawNativeFailed();
-// }
+// Define custom errors
+sol! {
+    error OnlyVRFWrapperCanFulfill(address have, address want);
+}
+
+#[derive(SolidityError)]
+pub enum Errors {
+    OnlyVRFWrapperCanFulfill(OnlyVRFWrapperCanFulfill),
+}
 
 /// Declare that `DirectFundingConsumer` is a contract with the following external methods.
 #[public]
@@ -89,34 +84,31 @@ impl DirectFundingConsumer {
         Ok(())
     }
 
-    /// Internal function to request randomness paying in native tokens
+    /// Internal function to request randomness paying in native ETH token
     fn request_randomness_pay_in_native(
         &mut self,
         callback_gas_limit: u32,
         request_confirmations: u16,
         num_words: u32,
     ) -> Result<(U256, U256), Vec<u8>> {
-        let wrapper_address = self.i_vrf_v2_plus_wrapper.get();
+        let external_vrf_wrapper_address = self.i_vrf_v2_plus_wrapper.get();
 
-        let wrapper = IVRFV2PlusWrapper::new(wrapper_address);
+        let external_vrf_wrapper = IVRFV2PlusWrapper::new(external_vrf_wrapper_address);
 
         // Calculate request price
-        let request_price =
-            wrapper.calculate_request_price_native(&mut *self, callback_gas_limit, num_words)?;
+        let request_price = external_vrf_wrapper.calculate_request_price_native(
+            &mut *self,
+            callback_gas_limit,
+            num_words,
+        )?;
 
-        // Encode extra args according to VRFV2PlusClient._argsToBytes()
-        // For native payment, we need proper extra args encoding
-        let mut extra_args_vec = Vec::new();
-        extra_args_vec.extend_from_slice(&[0x92, 0xfd, 0x13, 0x38]); // EXTRA_ARGS_V1_TAG
-        extra_args_vec.extend_from_slice(&[0x00; 28]); // Padding for struct alignment
-        extra_args_vec.extend_from_slice(&[0x00, 0x00, 0x00, 0x01]); // nativePayment: true
-        extra_args_vec.extend_from_slice(&[0x00; 28]); // Final padding
-        let extra_args = Bytes::from(extra_args_vec);
+        let extra_args = get_extra_args_for_native_payment();
 
+        // Create call context with value. This is to ensure that the consumer can pay for the request.
         let config = Call::new().value(request_price);
 
         // Request random words
-        let request_id = wrapper.request_random_words_in_native(
+        let request_id = external_vrf_wrapper.request_random_words_in_native(
             config,
             callback_gas_limit,
             request_confirmations,
@@ -128,7 +120,6 @@ impl DirectFundingConsumer {
     }
 
     /// Public function to request random words
-    //#[payable]
     pub fn request_random_words(&mut self) -> Result<U256, Vec<u8>> {
         let callback_gas_limit = self.callback_gas_limit.get().try_into().unwrap_or(100000);
         let request_confirmations = self.request_confirmations.get().try_into().unwrap_or(3);
@@ -140,9 +131,7 @@ impl DirectFundingConsumer {
             num_words,
         )?;
 
-        // Store request status
-        // let random_word = U256::ZERO;
-        // self.s_requests_value.insert(request_id, random_word);
+        // Store request status in separate mappings
         self.s_requests_fulfilled.insert(request_id, false);
         self.s_requests_paid.insert(request_id, req_price);
 
@@ -150,11 +139,11 @@ impl DirectFundingConsumer {
         self.request_ids.push(request_id);
         self.last_request_id.set(request_id);
 
-        // // Emit event
-        // evm::log(RequestSent {
-        //     requestId: request_id,
-        //     numWords: U256::from(num_words),
-        // });
+        // Emit event
+        evm::log(RequestSent {
+            requestId: request_id,
+            numWords: num_words,
+        });
 
         Ok(request_id)
     }
@@ -164,11 +153,11 @@ impl DirectFundingConsumer {
         &mut self,
         request_id: U256,
         random_words: Vec<U256>,
-    ) -> Result<(), Vec<u8>> {
+    ) -> Result<(), Errors> {
         let paid_amount = self.s_requests_paid.get(request_id);
 
         if paid_amount == U256::ZERO {
-            return Err(alloc::vec![]);
+            panic!("Request not found");
         }
 
         //request_status.fulfilled = true;
@@ -178,12 +167,12 @@ impl DirectFundingConsumer {
             self.s_requests_value.insert(request_id, random_words[0]);
         }
 
-        // // Emit event
-        // evm::log(RequestFulfilled {
-        //     requestId: request_id,
-        //     randomWords: random_words,
-        //     payment: paid_amount,
-        // });
+        // Emit event
+        evm::log(RequestFulfilled {
+            requestId: request_id,
+            randomWords: random_words,
+            payment: paid_amount,
+        });
 
         Ok(())
     }
@@ -193,16 +182,15 @@ impl DirectFundingConsumer {
         &mut self,
         request_id: U256,
         random_words: Vec<U256>,
-    ) -> Result<(), Vec<u8>> {
-        //let vrf_wrapper_addr = self.i_vrf_v2_plus_wrapper.get();
+    ) -> Result<(), Errors> {
+        let vrf_wrapper_addr = self.i_vrf_v2_plus_wrapper.get();
 
-        // if msg::sender() != vrf_wrapper_addr {
-        //     return Err(OnlyVRFWrapperCanFulfill {
-        //         have: msg::sender(),
-        //         want: vrf_wrapper_addr,
-        //     }
-        //     .encode());
-        // }
+        if msg::sender() != vrf_wrapper_addr {
+            return Err(Errors::OnlyVRFWrapperCanFulfill(OnlyVRFWrapperCanFulfill {
+                have: msg::sender(),
+                want: vrf_wrapper_addr,
+            }));
+        }
 
         self.fulfill_random_words(request_id, random_words)
     }
@@ -212,15 +200,11 @@ impl DirectFundingConsumer {
         let paid = self.s_requests_paid.get(request_id);
 
         if paid == U256::ZERO {
-            return Err(alloc::vec![]);
+            panic!("Request not found");
         }
 
         let fulfilled = self.s_requests_fulfilled.get(request_id);
-        let random_word = if fulfilled {
-            self.s_requests_value.get(request_id)
-        } else {
-            U256::ZERO
-        };
+        let random_word = self.s_requests_value.get(request_id);
 
         Ok((paid, fulfilled, random_word))
     }
@@ -230,12 +214,7 @@ impl DirectFundingConsumer {
         self.last_request_id.get()
     }
 
-    // /// Get the native balance of the contract
-    // pub fn get_balance(&self) -> U256 {
-    //     contract::balance()
-    // }
-
-    // /// Withdraw native tokens
+    /// Withdraw native tokens
     pub fn withdraw_native(&mut self, amount: U256) -> Result<(), Vec<u8>> {
         let recipient = msg::sender();
 
@@ -245,40 +224,43 @@ impl DirectFundingConsumer {
         Ok(())
     }
 
-    // // Getter functions for configuration
-    // pub fn callback_gas_limit(&self) -> u32 {
-    //     self.callback_gas_limit.get().try_into().unwrap_or(100000)
-    // }
+    // Getter functions for configuration
+    pub fn callback_gas_limit(&self) -> U32 {
+        self.callback_gas_limit.get()
+    }
 
-    // pub fn request_confirmations(&self) -> u16 {
-    //     self.request_confirmations.get().try_into().unwrap_or(3)
-    // }
+    pub fn request_confirmations(&self) -> U16 {
+        self.request_confirmations.get()
+    }
 
-    // pub fn num_words(&self) -> u32 {
-    //     self.num_words.get().try_into().unwrap_or(1)
-    // }
+    pub fn num_words(&self) -> U32 {
+        self.num_words.get()
+    }
 
     pub fn i_vrf_v2_plus_wrapper(&self) -> Address {
         self.i_vrf_v2_plus_wrapper.get()
-    }
-
-    /// Get request IDs array (for querying)
-    pub fn get_request_ids(&self) -> Vec<U256> {
-        let mut result = Vec::new();
-        for i in 0..self.request_ids.len() {
-            result.push(self.request_ids.get(i).unwrap_or(U256::ZERO));
-        }
-        result
     }
 
     /// Receive function equivalent - handles incoming ETH
     #[receive]
     #[payable]
     pub fn receive(&mut self) -> Result<(), Vec<u8>> {
-        // evm::log(Received {
-        //     sender: msg::sender(),
-        //     value: msg::value(),
-        // });
+        evm::log(Received {
+            sender: msg::sender(),
+            value: msg::value(),
+        });
         Ok(())
     }
+}
+
+fn get_extra_args_for_native_payment() -> Bytes {
+    // Encode extra args according to VRFV2PlusClient._argsToBytes()
+    // Format: abi.encodeWithSelector(EXTRA_ARGS_V1_TAG, extraArgs)
+    // where EXTRA_ARGS_V1_TAG = bytes4(keccak256("VRF ExtraArgsV1")) = 0x92fd1338
+    let mut extra_args_vec = Vec::new();
+    extra_args_vec.extend_from_slice(&[0x92, 0xfd, 0x13, 0x38]); // EXTRA_ARGS_V1_TAG
+    extra_args_vec.extend_from_slice(&[0x00; 28]); // Padding for struct alignment
+    extra_args_vec.extend_from_slice(&[0x00, 0x00, 0x00, 0x01]); // nativePayment: true
+    extra_args_vec.extend_from_slice(&[0x00; 28]); // Final padding
+    Bytes::from(extra_args_vec)
 }

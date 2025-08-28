@@ -86,10 +86,26 @@ const deployedContracts = {
       ],
     },
     "vrf-consumer": {
-      address: "0xc5cf36125bf12a3c4b61fcd84ebd8c280a94963d",
+      address: "0x17699c77ed4401cd9dcaf06cad446d2c6b464a08",
       txHash:
-        "0xd7cd457a008a926ce504bea20257b3b84df2c80feebc6349e0524ae0c4bea5c1",
+        "0x4ddc44e3e6f53913c66416c6d1184f4a6b94ed84fabe86774cfadaac90610e9c",
       abi: [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          name: "OnlyVRFWrapperCanFulfill",
+          type: "error",
+        },
         {
           inputs: [
             {
@@ -116,19 +132,6 @@ const deployedContracts = {
               internalType: "uint256",
               name: "",
               type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "getRequestIds",
-          outputs: [
-            {
-              internalType: "uint256[]",
-              name: "",
-              type: "uint256[]",
             },
           ],
           stateMutability: "view",
