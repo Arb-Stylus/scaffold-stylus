@@ -8,7 +8,8 @@ const deployedContracts = {
   "421614": {
     "your-contract": {
       address: "0xb3daa40276909e922e0e11f6fbe2025017401ab8",
-      txHash: "0xf802de2015e2e4a2dd8127746098a7bec17b43d38423922105b2fb082da3f291",
+      txHash:
+        "0xf802de2015e2e4a2dd8127746098a7bec17b43d38423922105b2fb082da3f291",
       abi: [
         {
           inputs: [
@@ -85,18 +86,31 @@ const deployedContracts = {
       ],
     },
     "vrf-consumer": {
-      address: "0x8d8321382b8e2a827a7d482f8b3f72d50796bc90",
-      txHash: "0x71bc8f93ca2f45679d90072043eb4ace6194f1befb08e2a4cd4a3e49d885745a",
+      address: "0xc5cf36125bf12a3c4b61fcd84ebd8c280a94963d",
+      txHash:
+        "0xd7cd457a008a926ce504bea20257b3b84df2c80feebc6349e0524ae0c4bea5c1",
       abi: [
         {
           inputs: [
             {
-              internalType: "address",
-              name: "contract_address",
-              type: "address",
+              internalType: "uint256",
+              name: "request_id",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256[]",
+              name: "random_words",
+              type: "uint256[]",
             },
           ],
-          name: "callViewGetLastRequestId",
+          name: "fulfillRandomWords",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "getLastRequestId",
           outputs: [
             {
               internalType: "uint256",
@@ -108,19 +122,27 @@ const deployedContracts = {
           type: "function",
         },
         {
-          inputs: [
+          inputs: [],
+          name: "getRequestIds",
+          outputs: [
             {
-              internalType: "address",
-              name: "contract_address",
-              type: "address",
+              internalType: "uint256[]",
+              name: "",
+              type: "uint256[]",
             },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
             {
               internalType: "uint256",
               name: "request_id",
               type: "uint256",
             },
           ],
-          name: "callViewGetRequestStatus",
+          name: "getRequestStatus",
           outputs: [
             {
               internalType: "uint256",
@@ -142,14 +164,39 @@ const deployedContracts = {
           type: "function",
         },
         {
-          inputs: [
+          inputs: [],
+          name: "iVrfV2PlusWrapper",
+          outputs: [
             {
               internalType: "address",
-              name: "contract_address",
+              name: "",
               type: "address",
             },
           ],
-          name: "callWriteRequestRandomNumber",
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "request_id",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256[]",
+              name: "random_words",
+              type: "uint256[]",
+            },
+          ],
+          name: "rawFulfillRandomWords",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "requestRandomWords",
           outputs: [
             {
               internalType: "uint256",
@@ -157,6 +204,53 @@ const deployedContracts = {
               type: "uint256",
             },
           ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint32",
+              name: "callback_gas_limit",
+              type: "uint32",
+            },
+            {
+              internalType: "uint16",
+              name: "request_confirmations",
+              type: "uint16",
+            },
+            {
+              internalType: "uint32",
+              name: "num_words",
+              type: "uint32",
+            },
+          ],
+          name: "requestRandomnessPayInNative",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          name: "withdrawNative",
+          outputs: [],
           stateMutability: "nonpayable",
           type: "function",
         },
