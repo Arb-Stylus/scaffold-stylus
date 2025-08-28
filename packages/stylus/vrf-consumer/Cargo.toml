@@ -12,23 +12,14 @@ description = "Stylus hello world example"
 alloy-primitives = "=0.8.20"
 alloy-sol-types = "=0.8.20"
 stylus-sdk = "0.9.0"
-hex = { version = "0.4", default-features = false }
-openzeppelin-stylus = "=0.2.0"
+#openzeppelin-stylus = "=0.2.0"
+mini-alloc = "0.9.0"
 
 [dev-dependencies]
-alloy-primitives = { version = "=0.8.20", features = ["sha3-keccak"] }
-tokio = { version = "1.12.0", features = ["full"] }
-ethers = "2.0"
-eyre = "0.6.8"
-stylus-sdk = { version = "0.9.0", features = ["stylus-test"] }
-dotenv = "0.15.0"
 
 [features]
-default = ["mini-alloc"]
-# stylus-sdk/export-abi will be enabled automatically.
-export-abi = ["openzeppelin-stylus/export-abi"]
-debug = ["stylus-sdk/debug"]
-mini-alloc = ["stylus-sdk/mini-alloc"]
+#export-abi = ["openzeppelin-stylus/export-abi"]
+export-abi = ["stylus-sdk/export-abi"]
 
 [[bin]]
 name = "vrf-consumer"

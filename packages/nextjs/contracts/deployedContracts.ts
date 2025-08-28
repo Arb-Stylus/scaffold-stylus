@@ -86,9 +86,9 @@ const deployedContracts = {
       ],
     },
     "vrf-consumer": {
-      address: "0x17699c77ed4401cd9dcaf06cad446d2c6b464a08",
+      address: "0xd746a4d868be4b7f75c55b819fecca381e3c6488",
       txHash:
-        "0x4ddc44e3e6f53913c66416c6d1184f4a6b94ed84fabe86774cfadaac90610e9c",
+        "0xc15c1ed63f01c8377783e593e5688ab0ab6454423545ac5d385a128abd746b3e",
       abi: [
         {
           inputs: [
@@ -105,6 +105,19 @@ const deployedContracts = {
           ],
           name: "OnlyVRFWrapperCanFulfill",
           type: "error",
+        },
+        {
+          inputs: [],
+          name: "callbackGasLimit",
+          outputs: [
+            {
+              internalType: "uint32",
+              name: "",
+              type: "uint32",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
         },
         {
           inputs: [
@@ -180,6 +193,19 @@ const deployedContracts = {
           type: "function",
         },
         {
+          inputs: [],
+          name: "numWords",
+          outputs: [
+            {
+              internalType: "uint32",
+              name: "",
+              type: "uint32",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
           inputs: [
             {
               internalType: "uint256",
@@ -195,6 +221,19 @@ const deployedContracts = {
           name: "rawFulfillRandomWords",
           outputs: [],
           stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "requestConfirmations",
+          outputs: [
+            {
+              internalType: "uint16",
+              name: "",
+              type: "uint16",
+            },
+          ],
+          stateMutability: "view",
           type: "function",
         },
         {
