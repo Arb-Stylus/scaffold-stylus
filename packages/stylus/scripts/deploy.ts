@@ -32,7 +32,10 @@ export default async function deployScript(deployOptions: DeployOptions) {
   // Deploy a single contract
   await deployStylusContract({
     contract: "vrf-consumer",
-    constructorArgs: ["0x29576aB8152A09b9DC634804e4aDE73dA1f3a3CC"],
+    constructorArgs: [
+      "0x29576aB8152A09b9DC634804e4aDE73dA1f3a3CC",
+      config.deployerAddress!,
+    ],
     ...deployOptions,
   });
 

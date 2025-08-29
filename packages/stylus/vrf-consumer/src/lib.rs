@@ -20,10 +20,17 @@ use alloc::vec::Vec;
 use stylus_sdk::{
     alloy_primitives::{Address, Bytes, U16, U256, U32},
     alloy_sol_types::sol,
-    call::Call,
-    evm, msg,
     prelude::*,
+    stylus_core::calls::context::Call,
+    stylus_core::log,
 };
+
+// Import deprecated Call for sol_interface! compatibility
+#[allow(deprecated)]
+use stylus_sdk::call::Call as OldCall;
+
+/// Import OpenZeppelin Ownable functionality
+use openzeppelin_stylus::access::ownable::{self, IOwnable, Ownable};
 
 // Define persistent storage using the Solidity ABI.
 sol_storage! {
@@ -38,6 +45,8 @@ sol_storage! {
         uint32 callback_gas_limit;
         uint16 request_confirmations;
         uint32 num_words;
+        Ownable ownable;
+
     }
 }
 
@@ -63,20 +72,37 @@ sol! {
 
 // Define custom errors
 sol! {
+    #[derive(Debug)]
     error OnlyVRFWrapperCanFulfill(address have, address want);
 }
 
-#[derive(SolidityError)]
-pub enum Errors {
+#[derive(SolidityError, Debug)]
+pub enum Error {
     OnlyVRFWrapperCanFulfill(OnlyVRFWrapperCanFulfill),
+    UnauthorizedAccount(ownable::OwnableUnauthorizedAccount),
+    InvalidOwner(ownable::OwnableInvalidOwner),
 }
 
+impl From<ownable::Error> for Error {
+    fn from(value: ownable::Error) -> Self {
+        match value {
+            ownable::Error::UnauthorizedAccount(e) => Error::UnauthorizedAccount(e),
+            ownable::Error::InvalidOwner(e) => Error::InvalidOwner(e),
+        }
+    }
+}
 /// Declare that `DirectFundingConsumer` is a contract with the following external methods.
 #[public]
+#[implements(IOwnable<Error = Error>)]
 impl DirectFundingConsumer {
     /// Constructor - initializes the contract with VRF wrapper address
     #[constructor]
-    pub fn constructor(&mut self, vrf_v2_plus_wrapper: Address) -> Result<(), Vec<u8>> {
+    pub fn constructor(
+        &mut self,
+        vrf_v2_plus_wrapper: Address,
+        owner: Address,
+    ) -> Result<(), Error> {
+        self.ownable.constructor(owner)?;
         self.i_vrf_v2_plus_wrapper.set(vrf_v2_plus_wrapper);
         self.callback_gas_limit.set(U32::from(100000));
         self.request_confirmations.set(U16::from(3));
@@ -105,7 +131,9 @@ impl DirectFundingConsumer {
         let extra_args = get_extra_args_for_native_payment();
 
         // Create call context with value. This is to ensure that the consumer can pay for the request.
-        let config = Call::new().value(request_price);
+        // Using OldCall here is necessary for compatibility with sol_interface! generated code
+        #[allow(deprecated)]
+        let config = OldCall::new().value(request_price);
 
         // Request random words
         let request_id = external_vrf_wrapper.request_random_words_in_native(
@@ -140,10 +168,13 @@ impl DirectFundingConsumer {
         self.last_request_id.set(request_id);
 
         // Emit event
-        evm::log(RequestSent {
-            requestId: request_id,
-            numWords: num_words,
-        });
+        log(
+            self.vm(),
+            RequestSent {
+                requestId: request_id,
+                numWords: num_words,
+            },
+        );
 
         Ok(request_id)
     }
@@ -153,7 +184,7 @@ impl DirectFundingConsumer {
         &mut self,
         request_id: U256,
         random_words: Vec<U256>,
-    ) -> Result<(), Errors> {
+    ) -> Result<(), Error> {
         let paid_amount = self.s_requests_paid.get(request_id);
 
         if paid_amount == U256::ZERO {
@@ -168,11 +199,14 @@ impl DirectFundingConsumer {
         }
 
         // Emit event
-        evm::log(RequestFulfilled {
-            requestId: request_id,
-            randomWords: random_words,
-            payment: paid_amount,
-        });
+        log(
+            self.vm(),
+            RequestFulfilled {
+                requestId: request_id,
+                randomWords: random_words,
+                payment: paid_amount,
+            },
+        );
 
         Ok(())
     }
@@ -182,12 +216,12 @@ impl DirectFundingConsumer {
         &mut self,
         request_id: U256,
         random_words: Vec<U256>,
-    ) -> Result<(), Errors> {
+    ) -> Result<(), Error> {
         let vrf_wrapper_addr = self.i_vrf_v2_plus_wrapper.get();
-
-        if msg::sender() != vrf_wrapper_addr {
-            return Err(Errors::OnlyVRFWrapperCanFulfill(OnlyVRFWrapperCanFulfill {
-                have: msg::sender(),
+        let msg_sender = self.vm().msg_sender();
+        if msg_sender != vrf_wrapper_addr {
+            return Err(Error::OnlyVRFWrapperCanFulfill(OnlyVRFWrapperCanFulfill {
+                have: msg_sender,
                 want: vrf_wrapper_addr,
             }));
         }
@@ -216,12 +250,17 @@ impl DirectFundingConsumer {
 
     /// Withdraw native tokens
     pub fn withdraw_native(&mut self, amount: U256) -> Result<(), Vec<u8>> {
-        let recipient = msg::sender();
+        self.ownable.only_owner()?;
 
         // Transfer the amount
-        stylus_sdk::call::transfer_eth(recipient, amount)?;
+        self.vm()
+            .call(&Call::new().value(amount), self.ownable.owner(), &[])?;
 
         Ok(())
+    }
+
+    pub fn owner(&self) -> Address {
+        self.ownable.owner()
     }
 
     // Getter functions for configuration
@@ -245,11 +284,32 @@ impl DirectFundingConsumer {
     #[receive]
     #[payable]
     pub fn receive(&mut self) -> Result<(), Vec<u8>> {
-        evm::log(Received {
-            sender: msg::sender(),
-            value: msg::value(),
-        });
+        log(
+            self.vm(),
+            Received {
+                sender: self.vm().msg_sender(),
+                value: self.vm().msg_value(),
+            },
+        );
         Ok(())
+    }
+}
+
+/// Implementation of the IOwnable interface
+#[public]
+impl IOwnable for DirectFundingConsumer {
+    type Error = Error;
+
+    fn owner(&self) -> Address {
+        self.ownable.owner()
+    }
+
+    fn transfer_ownership(&mut self, new_owner: Address) -> Result<(), Self::Error> {
+        Ok(self.ownable.transfer_ownership(new_owner)?)
+    }
+
+    fn renounce_ownership(&mut self) -> Result<(), Self::Error> {
+        Ok(self.ownable.renounce_ownership()?)
     }
 }
 

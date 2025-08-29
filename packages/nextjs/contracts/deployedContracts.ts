@@ -86,9 +86,9 @@ const deployedContracts = {
       ],
     },
     "vrf-consumer": {
-      address: "0xd746a4d868be4b7f75c55b819fecca381e3c6488",
+      address: "0xc1a56f94b1cea9a5c5aece8fa8cf00023aaf4d4e",
       txHash:
-        "0xc15c1ed63f01c8377783e593e5688ab0ab6454423545ac5d385a128abd746b3e",
+        "0x41d32d3f6fbb2df4a9f6e49e1fff236d0c37f956be5db691dc465c7e8b856094",
       abi: [
         {
           inputs: [
@@ -104,6 +104,28 @@ const deployedContracts = {
             },
           ],
           name: "OnlyVRFWrapperCanFulfill",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          name: "OwnableInvalidOwner",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+          ],
+          name: "OwnableUnauthorizedAccount",
           type: "error",
         },
         {
@@ -200,6 +222,19 @@ const deployedContracts = {
               internalType: "uint32",
               name: "",
               type: "uint32",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "owner",
+          outputs: [
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
             },
           ],
           stateMutability: "view",

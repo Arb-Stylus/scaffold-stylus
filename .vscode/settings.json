@@ -1,7 +1,7 @@
 {
   "rust-analyzer.linkedProjects": [
-    "./packages/stylus/your-contract/Cargo.toml"
+    "./packages/stylus/counter/Cargo.toml",
+    "./packages/stylus/vrf-consumer/Cargo.toml"
   ],
-  "rust-analyzer.cargo.buildScripts.enable": true,
-  "rust-analyzer.cargo.features": "all"
+  "rust-analyzer.cargo.target": "wasm32-unknown-unknown"
 }
