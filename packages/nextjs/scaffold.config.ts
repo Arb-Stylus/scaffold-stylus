@@ -33,7 +33,7 @@ const scaffoldConfig = {
   // The key is the chain ID, and the value is the HTTP RPC URL
   rpcOverrides: {
     // Example:
-    // [chains.mainnet.id]: "https://mainnet.buidlguidl.com",
+    // [chains.mainnet.id]: "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
   },
 
   // This is ours WalletConnect's default project ID.

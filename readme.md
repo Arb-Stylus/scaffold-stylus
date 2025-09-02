@@ -7,13 +7,14 @@
 
 🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Arbitrum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
 
-⚙️ Built using Rust, NextJS, RainbowKit, Stylus, Wagmi, Viem, and TypeScript.
+⚙️ **Tech Stack**: Rust, NextJS, RainbowKit, Stylus, Wagmi, Viem, and TypeScript.
 
-- ✅ **Contract Hot Reload**: Your frontend auto-adapts to your smart contract as you edit it.
-- 🪝 **[Custom hooks](https://arb-stylus.github.io/scaffold-stylus-docs/components)**: Collection of React hooks wrapped around [wagmi](https://wagmi.sh/) to simplify interactions with smart contracts with TypeScript autocompletion.
-- 🧱 [**Components**](https://arb-stylus.github.io/scaffold-stylus-docs/hooks): Collection of common web3 components to quickly build your frontend.
-- 🔥 **Burner Wallet & Local Faucet**: Quickly test your application with a burner wallet and local faucet.
-- 🔐 **Integration with Wallet Providers**: Connect to different wallet providers and interact with the Arbitrum network.
+- ✅ **Contract Hot Reload**: Your frontend auto-adapts to your smart contract as you edit it
+- 🪝 **[Custom Hooks](https://arb-stylus.github.io/scaffold-stylus-docs/hooks)**: React hooks with TypeScript autocompletion for smart contract interactions
+- 🧱 **[Components](https://arb-stylus.github.io/scaffold-stylus-docs/components)**: Pre-built web3 components for rapid frontend development
+- 🔥 **Burner Wallet & Local Faucet**: Test your application with a burner wallet and local faucet
+- 🔐 **Multi-Wallet Support**: Connect to different wallet providers and interact with Arbitrum networks
+- 🌐 **Block Explorer**: Built-in block explorer for local development and testing
 
 ![Debug Contracts tab](./packages/nextjs/public/debug-image.png)
 
@@ -27,6 +28,8 @@ Before you begin, you need to install the following tools:
 - [Rust](https://www.rust-lang.org/tools/install)
 - [Docker](https://docs.docker.com/engine/install/)
 - [Foundry Cast](https://getfoundry.sh/)
+
+For detailed installation instructions and extensions setup, see our [documentation](https://arb-stylus.github.io/scaffold-stylus-docs/).
 
 ## Quickstart
 
@@ -106,9 +109,9 @@ yarn stylus:test
 
 ## Development Workflow
 
-- Edit your smart contract `lib.rs` in `packages/stylus/your-contract/src`
-- Edit your frontend in `packages/nextjs/app`
-- Edit your deployment scripts in `packages/stylus/scripts`
+- **Smart Contracts**: Edit `lib.rs` in `packages/stylus/your-contract/src`
+- **Frontend**: Edit components in `packages/nextjs/app`
+- **Deployment**: Customize scripts in `packages/stylus/scripts`
 
 ## Create Your Own Contract
 
@@ -130,9 +133,12 @@ The generated contract will be located in `packages/stylus/<contract-name>`.
 yarn deploy [...options]
 ```
 
-This command runs the `deploy.ts` script located in `packages/stylus/scripts`. You can customize this script with your deployment logic.
+**Options:**
+- `--network <network>`: Deploy to specific network
+- `--estimate-gas`: Gas estimation only
+- `--max-fee=<maxFee>`: Set max fee per gas in gwei
 
-**Available Options:**
+For detailed contract development and deployment guides, see our [documentation](https://arb-stylus.github.io/scaffold-stylus-docs/).
 
 - `--network <network>`: Specify which network to deploy to
 - `--estimate-gas`: Only perform gas estimation without deploying
@@ -146,10 +152,7 @@ To deploy your contracts to other networks (other than the default local Nitro d
 
 ### Prerequisites
 
-1. **Set the RPC URL**
-
-   Configure your target network's RPC endpoint using the proper `RPC_URL_<network>` environment variable. You can set this in your shell or create a `.env` file (see `.env.example` for reference):
-
+1. **Environment Variables**
    ```env
    RPC_URL_SEPOLIA=https://your-network-rpc-url
    ```

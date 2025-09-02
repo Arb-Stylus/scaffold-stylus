@@ -125,11 +125,11 @@ export const Address = ({
         <div className="flex flex-col space-y-1">
           {!onlyEnsOrAddress && (
             <div className={`ml-1.5 skeleton rounded-lg font-bold ${textSizeMap[ensSize]}`}>
-              <span className="invisible">0x1234...56789</span>
+              <span className="invisible">vitalik.eth</span>
             </div>
           )}
           <div className={`ml-1.5 skeleton rounded-lg ${textSizeMap[addressSize]}`}>
-            <span className="invisible">0x1234...56789</span>
+            <span className="invisible">0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045</span>
           </div>
         </div>
       </div>
