@@ -32,7 +32,7 @@ export const ALIASES: Record<string, string> = {
   sepolia: "arbitrumSepolia",
   devnet: "arbitrumNitro",
   nova: "arbitrumNova",
-  educhain_testnet: "educhainTestnet",
+  educhain_testnet: "eduChainTestnet",
   educhain: "eduChain",
   superposition: "superposition",
   superposition_testnet: "superpositionTestnet",
