@@ -1,62 +1,36 @@
 # Welcome to Scaffold-Stylus Contributing Guide
 
-Contributions are welcome and appreciated. The following sections provide information on how you can contribute to Scaffold-Stylus.
+Thank you for investing your time in contributing to Scaffold-Stylus!
 
-## Prerequisites
+This guide aims to provide an overview of the contribution workflow to help us make the contribution process effective for everyone involved.
 
-Before contributing to Scaffold-Stylus, please ensure you meet the following requirements:
+## About the Project
 
-- **Rust** (>=1.52.0)
-- **Node.js** (>=v20.18)
-- **Docker** (for local development)
-- **Git** (for version control)
+Scaffold-Stylus is a minimal and forkable repo providing builders with a starter kit to build decentralized applications on Ethereum.
 
 Read the [README](README.md) to get an overview of the project.
 
-This repo follows the Conventional Commit specification when writing commit messages.
+### Vision
 
-**Note:** It is important that any pull requests you submit have commit messages that follow this standard.
+The goal of Scaffold-Stylus is to provide the primary building blocks for a decentralized application.
 
-To start contributing:
+The repo can be forked to include integrations and more features, but we want to keep the master branch simple and minimal.
 
-1. **Fork this repo** and clone the fork locally.
-2. **Create a new branch**
-   ```bash
-   git checkout -b <my-branch>
-   ```
-3. **Install dependencies**
-   ```bash
-   yarn install
-   ```
-4. **Set up development environment**
-   ```bash
-   # Start local network
-   yarn chain
-   
-   # Deploy contracts
-   yarn deploy
-   
-   # Start frontend
-   yarn start
-   ```
+### Project Status
 
-### Commit Message Format
+The project is under active development.
 
-Here is an example of a bad message response:
+You can view the open Issues, follow the development process and contribute to the project.
 
-```bash
-git commit -m "bad message"
-⧗   input: bad message
-✖   subject may not be empty [subject-empty]
-✖   type may not be empty [type-empty]
-```
+## Getting started
 
-Here is an example of a good message response:
-```bash
-git commit -m "fix: added missing dependency"
-[my-branch 4c028af] fix: added missing dependency
-1 file changed, 50 insertions(+)
-```
+You can contribute to this repo in many ways:
+
+- Solve open issues
+- Report bugs or feature requests
+- Improve the documentation
+
+Contributions are made via Issues and Pull Requests (PRs). A few general guidelines for contributions:
 
 - Search for existing Issues and PRs before creating your own.
 - Contributions should only fix/add the functionality in the issue OR address style issues, not both.
@@ -64,66 +38,49 @@ git commit -m "fix: added missing dependency"
 - Please use the same formatting in the code repository. You can configure your IDE to do it by using the prettier / linting config files included in each package.
 - If applicable, please edit the README.md file to reflect the changes.
 
-### Development Workflow
+### Issues
 
-After making your changes, ensure the following:
+Issues should be used to report problems, request a new feature, or discuss potential changes before a PR is created.
 
-- **Build successfully**: `yarn build` runs without errors
-- **Tests pass**: `yarn test` runs successfully
-- **Code formatting**: `yarn format` formats your code
-- **Linting**: `yarn lint` passes without errors
-- **Contract tests**: `yarn stylus:test` passes for any contract changes
+#### Solve an issue
 
-### Pull Request Process
+Scan through our [existing issues](https://github.com/Arb-Stylus/scaffold-stylus/issues) to find one that interests you.
 
-1. **Fork the repository**
-2. **Create a feature branch** from `main`
-3. **Make your changes** following the development guidelines
-4. **Test your changes** thoroughly
-5. **Submit a pull request** against the `main` branch
+If a contributor is working on the issue, they will be assigned to the individual. If you find an issue to work on, you are welcome to assign it to yourself and open a PR with a fix for it.
 
-### Pull Request Guidelines
+#### Create a new issue
 
-- **Clear title**: Use a descriptive title that explains what the PR does
-- **Detailed description**: Include context, changes made, and testing steps
-- **Link issues**: Reference any related issues using `Fixes #123` or `Closes #123`
-- **Screenshots**: Include screenshots for UI changes
-- **Breaking changes**: Clearly mark any breaking changes
+If a related issue doesn't exist, you can open a new issue.
 
-### Code Style
+Some tips to follow when you are creating an issue:
 
-- Follow the existing code style and patterns
-- Use TypeScript for type safety
-- Add JSDoc comments for complex functions
-- Keep functions small and focused
-- Use meaningful variable and function names
+- Provide as much context as possible. Over-communicate to give the most details to the reader.
+- Include the steps to reproduce the issue or the reason for adding the feature.
+- Screenshots, videos etc., are highly appreciated.
 
-### Testing
+### Pull Requests
 
-- Add tests for new features
-- Update existing tests when modifying functionality
-- Ensure all tests pass before submitting PR
-- Test both happy path and edge cases
+#### Pull Request Process
 
-### Documentation
+We follow the ["fork-and-pull" Git workflow](https://github.com/susam/gitpr)
 
-- Update README.md if you add new features
-- Add JSDoc comments for new functions
-- Update type definitions if needed
-- Keep documentation up to date with code changes
+1. Fork the repo
+2. Clone the project
+3. Create a new branch with a descriptive name
+4. Commit your changes to the new branch
+5. Push changes to your fork
+6. Open a PR in our repository and tag one of the maintainers to review your PR
 
-## Community
+Here are some tips for a high-quality pull request:
 
-Join our community and stay connected:
+- Create a title for the PR that accurately defines the work done.
+- Structure the description neatly to make it easy to consume by the readers. For example, you can include bullet points and screenshots instead of having one large paragraph.
+- Add the link to the issue if applicable.
+- Have a good commit message that summarizes the work done.
 
-- 💬 [Telegram Support](https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA)
-- 📚 [Documentation](https://arb-stylus.github.io/scaffold-stylus-docs/)
-- 🌐 [Website](https://www.scaffoldstylus.com/)
+Once you submit your PR:
 
-## Code of Conduct
+- We may ask questions, request additional information or ask for changes to be made before a PR can be merged. Please note that these are to make the PR clear for everyone involved and aims to create a frictionless interaction process.
+- As you update your PR and apply changes, mark each conversation resolved.
 
-Please read our [Code of Conduct](CODE_OF_CONDUCT.md) since we expect project participants to adhere to it.
-
----
-
-Thank you for contributing to Scaffold-Stylus! 🚀
+Once the PR is approved, we'll "squash-and-merge" to keep the git commit history clean.
