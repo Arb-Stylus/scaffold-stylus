@@ -87,3 +87,260 @@ p {
     linear-gradient(270deg, #e3066e 0%, #203147 108.63%) padding-box,
     linear-gradient(90deg, var(--gradient-start) 0%, var(--gradient-end) 100%) border-box;
 }
+
+/* Figma Design Variables */
+:root {
+  --spacing-md: 8px;
+  --spacing-lg: 12px;
+  --spacing-xl: 16px;
+  --spacing-2xl: 16px;
+  --spacing-4xl: 24px;
+  --spacing-7xl: 40px;
+  --stroke-sub-20: rgba(255, 255, 255, 0.20);
+  --bg-surface-surface-40: rgba(2, 2, 2, 0.40);
+  --bg-surface-input-20: rgba(255, 255, 255, 0.04);
+  --text-sub-600: rgba(255, 255, 255, 0.60);
+  --text-soft-400: rgba(255, 255, 255, 0.40);
+  --text-strong-950: #FFFFFF;
+  --figma-pink: #FF50A2;
+  --figma-sky-blue: #30B4ED;
+}
+
+/* Contract Card Styles */
+.contract-card {
+  display: flex;
+  padding: var(--spacing-4xl, 24px);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-4xl, 24px);
+  align-self: stretch;
+  border-radius: var(--spacing-2xl, 16px);
+  border: 1px solid var(--stroke-sub-20, rgba(255, 255, 255, 0.20));
+  background: var(--bg-surface-surface-40, rgba(2, 2, 2, 0.40));
+  backdrop-filter: blur(25px);
+}
+
+.contract-title {
+  color: var(--figma-sky-blue);
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.contract-address {
+  color: white;
+  font-size: 0.875rem;
+}
+
+.contract-label {
+  color: white;
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+.contract-value {
+  color: var(--figma-pink);
+  font-size: 0.875rem;
+}
+
+.variable-name {
+  color: var(--figma-sky-blue);
+}
+
+/* Reusable Typography */
+.typography-uppercase {
+  color: var(--text-sub-600, rgba(255, 255, 255, 0.60));
+  text-align: center;
+  font-family: var(--font-orbitron), sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: -0.28px;
+  text-transform: uppercase;
+}
+
+/* Tab Container */
+.tab-container {
+  border-radius: var(--spacing-md, 8px);
+  background: var(--bg-surface-input-20, rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(25px);
+  padding: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+/* Tab Button */
+.tab-button {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: var(--spacing-md, 8px);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button.active {
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tab-button.active .tab-text {
+  color: #333;
+}
+
+.tab-button:not(.active) .tab-text {
+  color: var(--text-sub-600, rgba(255, 255, 255, 0.60));
+}
+
+/* Function Styling */
+.function-name {
+  color: var(--figma-sky-blue);
+}
+
+.param-type {
+  color: var(--text-sub-600, rgba(255, 255, 255, 0.60));
+}
+
+/* Input Styling */
+.input-container {
+  /* display: flex; */
+  padding: var(--spacing-lg, 12px) var(--spacing-xl, 16px);
+  align-items: center;
+  gap: 8px;
+  align-self: stretch;
+  border-radius: var(--spacing-md, 8px);
+  background: var(--bg-surface-input-20, rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(25px);
+}
+
+.input-text {
+  color: var(--text-soft-400, rgba(255, 255, 255, 0.40));
+  text-align: center;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.14px;
+}
+
+/* Override InputBase styling to match Figma design */
+.input-container .flex.border-2.border-base-300.bg-base-200.rounded-full {
+  border-radius: var(--spacing-md, 8px) !important;
+  background: var(--bg-surface-input-20, rgba(255, 255, 255, 0.04)) !important;
+  backdrop-filter: blur(25px) !important;
+  border: none !important;
+  padding: var(--spacing-lg, 12px) var(--spacing-xl, 16px) !important;
+  gap: 8px !important;
+  align-items: center !important;
+  align-self: stretch !important;
+}
+
+.input-container .input.input-ghost {
+  background: transparent !important;
+  border: none !important;
+  color: white !important;
+  font-family: Inter, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
+  letter-spacing: -0.14px !important;
+  text-align: left !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: auto !important;
+  flex: 1 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.input-container .input.input-ghost:focus {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.input-container .input.input-ghost::placeholder {
+  color: var(--text-soft-400, rgba(255, 255, 255, 0.40)) !important;
+  font-family: Inter, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
+  letter-spacing: -0.14px !important;
+}
+
+/* SEND Button Styling */
+.send-button {
+  display: flex;
+  padding: 8px var(--spacing-7xl, 40px);
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--spacing-md, 8px);
+  background: linear-gradient(180deg, #FC3592 0%, #E3066E 100%);
+  color: var(--text-strong-950, #FFF);
+  text-align: center;
+  font-family: var(--font-orbitron), sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: -0.28px;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow: 0 2px 0 #FF9CCB, 0 4px 8px rgba(255, 156, 203, 0.3);
+}
+
+.send-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.send-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Read Button - same styling as send button */
+.read-button {
+  display: flex;
+  padding: 8px var(--spacing-7xl, 40px);
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--spacing-md, 8px);
+  background: linear-gradient(180deg, #FC3592 0%, #E3066E 100%);
+  color: var(--text-strong-950, #FFF);
+  text-align: center;
+  font-family: var(--font-orbitron), sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: -0.28px;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow: 0 2px 0 #FF9CCB, 0 4px 8px rgba(255, 156, 203, 0.3);
+  margin-left: auto;
+}
+
+.read-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.read-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}

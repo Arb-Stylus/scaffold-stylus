@@ -6,7 +6,7 @@ import { ContractReadMethods } from "./ContractReadMethods";
 import { ContractVariables } from "./ContractVariables";
 import { ContractWriteMethods } from "./ContractWriteMethods";
 import { Address, Balance } from "~~/components/scaffold-eth";
-import { useDeployedContractInfo, useNetworkColor } from "~~/hooks/scaffold-eth";
+import { useDeployedContractInfo } from "~~/hooks/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 import { ContractName } from "~~/utils/scaffold-eth/contract";
 
@@ -23,7 +23,6 @@ export const ContractUI = ({ contractName, className = "" }: ContractUIProps) =>
   const [refreshDisplayVariables, triggerRefreshDisplayVariables] = useReducer(value => !value, false);
   const { targetNetwork } = useTargetNetwork();
   const { data: deployedContractData, isLoading: deployedContractLoading } = useDeployedContractInfo({ contractName });
-  const networkColor = useNetworkColor();
 
   const tabs = [
     { id: "write", label: "Write" },
@@ -50,25 +49,35 @@ export const ContractUI = ({ contractName, className = "" }: ContractUIProps) =>
     <div className={`grid grid-cols-1 lg:grid-cols-6 px-6 lg:px-10 lg:gap-12 w-full max-w-7xl my-0 ${className}`}>
       <div className="col-span-5 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
         <div className="col-span-1 flex flex-col">
-          <div className="gradient-border shadow-md shadow-secondary rounded-xl px-6 lg:px-8 mb-6 space-y-1 py-4">
-            <div className="flex">
-              <div className="flex flex-col gap-1">
-                <span className="font-bold">{contractName}</span>
-                <Address address={deployedContractData.address} onlyEnsOrAddress />
-                <div className="flex gap-1 items-center">
-                  <span className="font-bold text-sm">Balance:</span>
-                  <Balance address={deployedContractData.address} className="px-0 h-1.5 min-h-[0.375rem]" />
-                </div>
+          <div className="contract-card mb-6">
+            <div className="flex flex-col gap-4 w-full">
+              {/* Contract Title */}
+              <div className="contract-title">{contractName}</div>
+
+              <Address address={deployedContractData.address} onlyEnsOrAddress />
+
+              {/* Balance */}
+              <div className="flex items-center gap-2">
+                <span className="contract-label">Balance:</span>
+                <Balance
+                  address={deployedContractData.address}
+                  className="contract-value px-0 h-1.5 min-h-[0.375rem]"
+                />
               </div>
+
+              {/* Network */}
+              {targetNetwork && (
+                <div className="flex items-center gap-2">
+                  <span className="contract-label">Network:</span>
+                  <span className="contract-value">{targetNetwork.name}</span>
+                </div>
+              )}
             </div>
-            {targetNetwork && (
-              <p className="my-0 text-sm">
-                <span className="font-bold">Network</span>:{" "}
-                <span style={{ color: networkColor }}>{targetNetwork.name}</span>
-              </p>
-            )}
           </div>
-          <div className="gradient-border rounded-xl px-6 lg:px-8 py-4 shadow-lg shadow-base-300">
+          <div
+            className="rounded-xl px-6 lg:px-8 py-4 shadow-lg shadow-base-300"
+            style={{ border: "1px solid var(--stroke-sub-20, rgba(255, 255, 255, 0.20))" }}
+          >
             <ContractVariables
               refreshDisplayVariables={refreshDisplayVariables}
               deployedContractData={deployedContractData}
@@ -76,21 +85,22 @@ export const ContractUI = ({ contractName, className = "" }: ContractUIProps) =>
           </div>
         </div>
         <div className="col-span-1 lg:col-span-2 flex flex-col gap-6">
-          <div className="tabs tabs-boxed gradient-border rounded-[5px] bg-transparent">
+          <div className="tab-container">
             {tabs.map(tab => (
-              <a
+              <button
                 key={tab.id}
-                className={`tab h-10 ${
-                  activeTab === tab.id ? "tab-active !bg-[#E3066E] !rounded-[5px] !text-white" : ""
-                }`}
+                className={`tab-button ${activeTab === tab.id ? "active" : ""}`}
                 onClick={() => setActiveTab(tab.id)}
               >
-                {tab.label}
-              </a>
+                <span className="tab-text typography-uppercase">{tab.label}</span>
+              </button>
             ))}
           </div>
           <div className="z-10">
-            <div className="gradient-border rounded-[5px] flex flex-col relative bg-component">
+            <div
+              className="rounded-[16px] flex flex-col relative bg-component"
+              style={{ border: "1px solid var(--stroke-sub-20, rgba(255, 255, 255, 0.20))" }}
+            >
               <div className="p-5 divide-y divide-secondary">
                 {activeTab === "read" && <ContractReadMethods deployedContractData={deployedContractData} />}
                 {activeTab === "write" && (
