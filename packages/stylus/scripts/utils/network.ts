@@ -32,10 +32,10 @@ export const ALIASES: Record<string, string> = {
   sepolia: "arbitrumSepolia",
   devnet: "arbitrumNitro",
   nova: "arbitrumNova",
-  educhain_testnet: "eduChainTestnet",
+  educhainTesnet: "eduChainTestnet",
   educhain: "eduChain",
   superposition: "superposition",
-  superposition_testnet: "superpositionTestnet",
+  superpositionTestnet: "superpositionTestnet",
 };
 
 // TODO: add more compatible Orbit Chains here
@@ -48,7 +48,13 @@ export const ORBIT_CHAINS: Chain[] = [
 
 export function getChain(networkName: string): Chain | null {
   try {
-    const actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
+    // First try exact match (for camelCase aliases)
+    let actualNetworkName = ALIASES[networkName] || networkName;
+    
+    // If no exact match, try lowercase match (for backward compatibility)
+    if (actualNetworkName === networkName) {
+      actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
+    }
 
     const chainEntry = Object.entries(SUPPORTED_NETWORKS).find(
       ([key]) => key.toLowerCase() === actualNetworkName.toLowerCase(),
@@ -68,7 +74,13 @@ export function getChain(networkName: string): Chain | null {
 }
 
 export function getPrivateKey(networkName: string): string {
-  const actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
+  // First try exact match (for camelCase aliases)
+  let actualNetworkName = ALIASES[networkName] || networkName;
+  
+  // If no exact match, try lowercase match (for backward compatibility)
+  if (actualNetworkName === networkName) {
+    actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
+  }
 
   switch (actualNetworkName.toLowerCase()) {
     case "arbitrum":
@@ -122,7 +134,13 @@ export function getPrivateKey(networkName: string): string {
 }
 
 export const getAccountAddress = (networkName: string): Address | undefined => {
-  const actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
+  // First try exact match (for camelCase aliases)
+  let actualNetworkName = ALIASES[networkName] || networkName;
+  
+  // If no exact match, try lowercase match (for backward compatibility)
+  if (actualNetworkName === networkName) {
+    actualNetworkName = ALIASES[networkName.toLowerCase()] || networkName;
+  }
 
   switch (actualNetworkName.toLowerCase()) {
     case "arbitrum":
