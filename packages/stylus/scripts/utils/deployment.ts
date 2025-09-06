@@ -104,6 +104,7 @@ export function saveDeployment(
     }
 
     // Read existing deployments or start fresh
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let deployments: Record<string, any> = {};
     if (fs.existsSync(networkPath)) {
       const content = fs.readFileSync(networkPath, "utf8");

@@ -27,6 +27,7 @@ export function getContractNameFromCargoToml(contractFolder: string): string {
     );
   }
   const tomlContent = fs.readFileSync(cargoTomlPath, "utf8");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let parsed: any;
   try {
     parsed = toml.parse(tomlContent);
@@ -163,6 +164,7 @@ export async function generateTsAbi(
     abi: abiJson,
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let deployedContractsObj: any = {};
   const fileHeader = generatedContractComment + "\n\n";
 
@@ -240,7 +242,7 @@ export function handleSolcError(
  * This is useful when the file has been updated during runtime
  * @returns The deployed contracts object
  */
-export function loadDeployedContracts(): any {
+export function loadDeployedContracts() {
   const deployedContractsPath = "../nextjs/contracts/deployedContracts.ts";
 
   if (!fs.existsSync(deployedContractsPath)) {
@@ -266,7 +268,7 @@ export function loadDeployedContracts(): any {
  * @param contractName - The contract name
  * @returns The contract data with address, txHash, and abi
  */
-export function getContractData(chainId: string, contractName: string): any {
+export function getContractData(chainId: string, contractName: string) {
   const deployedContracts = loadDeployedContracts();
 
   if (
@@ -289,6 +291,8 @@ export function getContractData(chainId: string, contractName: string): any {
   return contractData;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function contractHasInitializeFunction(contractData: any): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return contractData.abi.some((abi: any) => abi.name === "initialize");
 }
