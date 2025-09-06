@@ -24,11 +24,11 @@ p {
 }
 
 .btn {
-  @apply shadow-md;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 .btn.btn-ghost {
-  @apply shadow-none;
+  box-shadow: none;
 }
 
 .border-color {
@@ -205,7 +205,6 @@ p {
 
 /* Input Styling */
 .input-container {
-  /* display: flex; */
   padding: var(--spacing-lg, 12px) var(--spacing-xl, 16px);
   align-items: center;
   gap: 8px;
@@ -226,7 +225,7 @@ p {
   letter-spacing: -0.14px;
 }
 
-/* Override InputBase styling to match Figma design */
+/* Input field overrides */
 .input-container .flex.border-2.border-base-300.bg-base-200.rounded-full {
   border-radius: var(--spacing-md, 8px) !important;
   background: var(--bg-surface-input-20, rgba(255, 255, 255, 0.04)) !important;
@@ -256,14 +255,12 @@ p {
   outline: none !important;
 }
 
-.input-container .input.input-ghost:focus {
+.input-container .input.input-ghost:focus,
+.input-container .input.input-ghost::placeholder {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   outline: none !important;
-}
-
-.input-container .input.input-ghost::placeholder {
   color: var(--text-soft-400, rgba(255, 255, 255, 0.40)) !important;
   font-family: Inter, sans-serif !important;
   font-size: 14px !important;
@@ -272,7 +269,7 @@ p {
   letter-spacing: -0.14px !important;
 }
 
-/* SEND Button Styling */
+/* Button Styles */
 .send-button {
   display: flex;
   padding: 8px var(--spacing-7xl, 40px);
@@ -308,7 +305,6 @@ p {
   transform: none;
 }
 
-/* Read Button - same styling as send button */
 .read-button {
   display: flex;
   padding: 8px var(--spacing-7xl, 40px);
@@ -343,4 +339,46 @@ p {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+/* Typography Utilities */
+.text-inter {
+  font-family: Inter, sans-serif;
+}
+
+.text-inter-14 {
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.14px;
+}
+
+/* Contract Tab Button Styles */
+.contract-tab-button {
+  padding: 8px 16px;
+  border-radius: 9999px;
+  color: var(--text-strong-950, #FFFFFF);
+  font-family: Inter, sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.contract-tab-button.selected {
+  background-color: #E3066E;
+}
+
+.contract-tab-button.selected:hover {
+  background-color: #E3066E;
+}
+
+.contract-tab-button.unselected {
+  background-color: transparent;
+  border: 1px solid var(--stroke-sub-20, rgba(255, 255, 255, 0.20));
+}
+
+.contract-tab-button.unselected:hover {
+  border-color: rgba(255, 255, 255, 0.30);
 }

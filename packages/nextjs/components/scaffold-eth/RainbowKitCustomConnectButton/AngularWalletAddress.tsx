@@ -54,7 +54,7 @@ export const AngularWalletAddress = ({
           className="dropdown-toggle gap-0 !h-auto"
           style={{
             position: "relative",
-            width: "200px",
+            width: "220px",
             height: "46px",
             display: "flex",
             alignItems: "center",
@@ -66,9 +66,9 @@ export const AngularWalletAddress = ({
           {/* Angular border SVG */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="200"
+            width="220"
             height="46"
-            viewBox="0 0 200 46"
+            viewBox="0 0 220 46"
             fill="none"
             style={{
               position: "absolute",
@@ -78,7 +78,7 @@ export const AngularWalletAddress = ({
             }}
           >
             <path
-              d="M176.132 0.5L199.5 23.2109V45.5H24.0811L0.5 22.7871V0.5H176.132Z"
+              d="M196.132 0.5L219.5 23.2109V45.5H24.0811L0.5 22.7871V0.5H196.132Z"
               stroke="#30B4ED"
               strokeWidth="1"
             />
@@ -99,9 +99,7 @@ export const AngularWalletAddress = ({
             <BlockieAvatar address={checkSumAddress} size={30} ensImage={ensAvatar} />
             <span
               style={{
-                overflow: "hidden",
                 color: "#FFF",
-                textOverflow: "ellipsis",
                 fontFamily: "Orbitron, sans-serif",
                 fontSize: "14px",
                 fontWeight: 700,
@@ -111,6 +109,8 @@ export const AngularWalletAddress = ({
                 display: "flex",
                 alignItems: "center",
                 height: "30px",
+                whiteSpace: "nowrap",
+                minWidth: 0,
               }}
             >
               {isENS(displayName) ? displayName : checkSumAddress?.slice(0, 6) + "..." + checkSumAddress?.slice(-4)}
@@ -127,60 +127,75 @@ export const AngularWalletAddress = ({
         </summary>
         <ul
           tabIndex={0}
-          className="dropdown-content menu z-[2] p-2 mt-2 shadow-center shadow-accent rounded-box gap-1 gradient-border"
+          className="dropdown-content menu z-[2] p-2 mt-4 gap-1"
+          style={{
+            borderRadius: "8px",
+            border: "1px solid rgba(255, 255, 255, 0.20)",
+            background: "rgba(2, 2, 2, 0.20)",
+            backdropFilter: "blur(25px)",
+          }}
         >
           <li className={selectingNetwork ? "hidden" : ""}>
             <div
-              className="h-8 btn-sm rounded-xl! flex gap-3 py-3 cursor-pointer"
+              className="flex gap-3 py-3 px-3 cursor-pointer rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-[rgba(48,180,237,0.16)] hover:to-[rgba(227,6,110,0.16)]"
               onClick={() => copyAddressToClipboard(checkSumAddress)}
             >
               {isAddressCopiedToClipboard ? (
                 <>
-                  <CheckCircleIcon className="text-xl font-normal h-6 w-4 ml-2 sm:ml-0" aria-hidden="true" />
-                  <span className="whitespace-nowrap">Copied!</span>
+                  <CheckCircleIcon className="h-5 w-5 text-white" aria-hidden="true" />
+                  <span className="whitespace-nowrap text-white">Copied!</span>
                 </>
               ) : (
                 <>
-                  <DocumentDuplicateIcon className="text-xl font-normal h-6 w-4 ml-2 sm:ml-0" aria-hidden="true" />
-                  <span className="whitespace-nowrap">Copy address</span>
+                  <DocumentDuplicateIcon className="h-5 w-5 text-white" aria-hidden="true" />
+                  <span className="whitespace-nowrap text-white">Copy address</span>
                 </>
               )}
             </div>
           </li>
           <li className={selectingNetwork ? "hidden" : ""}>
-            <label htmlFor="qrcode-modal" className="h-8 btn-sm rounded-xl! flex gap-3 py-3">
-              <QrCodeIcon className="h-6 w-4 ml-2 sm:ml-0" />
-              <span className="whitespace-nowrap">View QR Code</span>
+            <label
+              htmlFor="qrcode-modal"
+              className="flex gap-3 py-3 px-3 cursor-pointer rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-[rgba(48,180,237,0.16)] hover:to-[rgba(227,6,110,0.16)]"
+            >
+              <QrCodeIcon className="h-5 w-5 text-white" />
+              <span className="whitespace-nowrap text-white">View QR Code</span>
             </label>
           </li>
           {allowedNetworks.some(network => network.id === arbitrumNitro.id) && (
             <li className={selectingNetwork ? "hidden" : ""}>
-              <button className="menu-item btn-sm !rounded-xl flex gap-3 py-3" type="button" onClick={onSwitchAccount}>
-                <UserCircleIcon className="h-6 w-4 ml-2 sm:ml-0" />
-                <span className="whitespace-nowrap">Switch account</span>
+              <button
+                className="flex gap-3 py-3 px-3 cursor-pointer rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-[rgba(48,180,237,0.16)] hover:to-[rgba(227,6,110,0.16)] w-full text-left"
+                type="button"
+                onClick={onSwitchAccount}
+              >
+                <UserCircleIcon className="h-5 w-5 text-white" />
+                <span className="whitespace-nowrap text-white">Switch account</span>
               </button>
             </li>
           )}
           {allowedNetworks.length > 1 ? (
             <li className={selectingNetwork ? "hidden" : ""}>
               <button
-                className="h-8 btn-sm rounded-xl! flex gap-3 py-3"
+                className="flex gap-3 py-3 px-3 cursor-pointer rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-[rgba(48,180,237,0.16)] hover:to-[rgba(227,6,110,0.16)] w-full text-left"
                 type="button"
                 onClick={() => {
                   setSelectingNetwork(true);
                 }}
               >
-                <ArrowsRightLeftIcon className="h-6 w-4 ml-2 sm:ml-0" /> <span>Switch Network</span>
+                <ArrowsRightLeftIcon className="h-5 w-5 text-white" />
+                <span className="text-white">Switch Network</span>
               </button>
             </li>
           ) : null}
           <li className={selectingNetwork ? "hidden" : ""}>
             <button
-              className="menu-item text-error h-8 btn-sm rounded-xl! flex gap-3 py-3"
+              className="flex gap-3 py-3 px-3 cursor-pointer rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-[rgba(48,180,237,0.16)] hover:to-[rgba(227,6,110,0.16)] w-full text-left"
               type="button"
               onClick={() => disconnect()}
             >
-              <ArrowLeftEndOnRectangleIcon className="h-6 w-4 ml-2 sm:ml-0" /> <span>Disconnect</span>
+              <ArrowLeftEndOnRectangleIcon className="h-5 w-5 text-[#FB3748]" />
+              <span style={{ color: "#FB3748" }}>Disconnect</span>
             </button>
           </li>
         </ul>
