@@ -154,7 +154,7 @@ export const Footer = () => {
 
           {/* Support button */}
           <a
-            href="https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA"
+            href="https://t.me/arbitrum_stylus"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2 px-4 py-2 rounded-2xl border"
