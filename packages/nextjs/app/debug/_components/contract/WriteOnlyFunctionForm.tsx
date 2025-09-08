@@ -104,7 +104,7 @@ export const WriteOnlyFunctionForm = ({
           <div className="flex flex-col gap-1.5 w-full">
             <div className="flex items-center ml-2">
               <span className="text-xs font-medium mr-2 leading-none">payable value</span>
-              <span className="block text-xs font-extralight leading-none">wei</span>
+              <span className="block text-xs font-extralight leading-none param-type">wei</span>
             </div>
             <IntegerInput
               value={txValue}

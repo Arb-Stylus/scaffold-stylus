@@ -15,6 +15,7 @@ import { BlockieAvatar, isENS } from "~~/components/scaffold-eth";
 import { useCopyToClipboard, useOutsideClick } from "~~/hooks/scaffold-eth";
 import { getTargetNetworks } from "~~/utils/scaffold-stylus";
 import { arbitrumNitro } from "~~/utils/scaffold-stylus/supportedChains";
+import { useTheme } from "next-themes";
 
 const allowedNetworks = getTargetNetworks();
 
@@ -33,6 +34,8 @@ export const AngularWalletAddress = ({
 }: AngularWalletAddressProps) => {
   const { disconnect } = useDisconnect();
   const checkSumAddress = getAddress(address);
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = resolvedTheme === "dark";
 
   const { copyToClipboard: copyAddressToClipboard, isCopiedToClipboard: isAddressCopiedToClipboard } =
     useCopyToClipboard();
@@ -58,7 +61,7 @@ export const AngularWalletAddress = ({
             height: "46px",
             display: "flex",
             alignItems: "center",
-            padding: "0 16px",
+            padding: "0 20px",
             cursor: "pointer",
             alignSelf: "center",
           }}
@@ -99,13 +102,12 @@ export const AngularWalletAddress = ({
             <BlockieAvatar address={checkSumAddress} size={30} ensImage={ensAvatar} />
             <span
               style={{
-                color: "#FFF",
+                color: isDarkMode ? "#FFF" : "black",
                 fontFamily: "Orbitron, sans-serif",
                 fontSize: "14px",
                 fontWeight: 700,
                 lineHeight: "1",
                 textTransform: "uppercase",
-                flex: 1,
                 display: "flex",
                 alignItems: "center",
                 height: "30px",
@@ -118,7 +120,7 @@ export const AngularWalletAddress = ({
             <ChevronDownIcon
               className="h-4 w-4"
               style={{
-                color: "#FFF",
+                color: isDarkMode ? "#FFF" : "black",
                 height: "16px",
                 width: "16px",
               }}
@@ -130,8 +132,8 @@ export const AngularWalletAddress = ({
           className="dropdown-content menu z-[2] p-2 mt-4 gap-1"
           style={{
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.20)",
-            background: "rgba(2, 2, 2, 0.20)",
+            border: isDarkMode ? "1px solid rgba(255, 255, 255, 0.20)" : "1px solid rgba(0, 0, 0, 0.1)",
+            background: isDarkMode ? "rgba(2, 2, 2, 0.20)" : "rgba(255, 255, 255, 0.20)",
             backdropFilter: "blur(25px)",
           }}
         >
@@ -142,13 +144,25 @@ export const AngularWalletAddress = ({
             >
               {isAddressCopiedToClipboard ? (
                 <>
-                  <CheckCircleIcon className="h-5 w-5 text-white" aria-hidden="true" />
-                  <span className="whitespace-nowrap text-white">Copied!</span>
+                  <CheckCircleIcon
+                    className="h-5 w-5"
+                    style={{ color: isDarkMode ? "white" : "black" }}
+                    aria-hidden="true"
+                  />
+                  <span className="whitespace-nowrap" style={{ color: isDarkMode ? "white" : "black" }}>
+                    Copied!
+                  </span>
                 </>
               ) : (
                 <>
-                  <DocumentDuplicateIcon className="h-5 w-5 text-white" aria-hidden="true" />
-                  <span className="whitespace-nowrap text-white">Copy address</span>
+                  <DocumentDuplicateIcon
+                    className="h-5 w-5"
+                    style={{ color: isDarkMode ? "white" : "black" }}
+                    aria-hidden="true"
+                  />
+                  <span className="whitespace-nowrap" style={{ color: isDarkMode ? "white" : "black" }}>
+                    Copy address
+                  </span>
                 </>
               )}
             </div>
@@ -158,8 +172,10 @@ export const AngularWalletAddress = ({
               htmlFor="qrcode-modal"
               className="flex gap-3 py-3 px-3 cursor-pointer rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-[rgba(48,180,237,0.16)] hover:to-[rgba(227,6,110,0.16)]"
             >
-              <QrCodeIcon className="h-5 w-5 text-white" />
-              <span className="whitespace-nowrap text-white">View QR Code</span>
+              <QrCodeIcon className="h-5 w-5" style={{ color: isDarkMode ? "white" : "black" }} />
+              <span className="whitespace-nowrap" style={{ color: isDarkMode ? "white" : "black" }}>
+                View QR Code
+              </span>
             </label>
           </li>
           {allowedNetworks.some(network => network.id === arbitrumNitro.id) && (
@@ -169,8 +185,10 @@ export const AngularWalletAddress = ({
                 type="button"
                 onClick={onSwitchAccount}
               >
-                <UserCircleIcon className="h-5 w-5 text-white" />
-                <span className="whitespace-nowrap text-white">Switch account</span>
+                <UserCircleIcon className="h-5 w-5" style={{ color: isDarkMode ? "white" : "black" }} />
+                <span className="whitespace-nowrap" style={{ color: isDarkMode ? "white" : "black" }}>
+                  Switch account
+                </span>
               </button>
             </li>
           )}
@@ -183,8 +201,8 @@ export const AngularWalletAddress = ({
                   setSelectingNetwork(true);
                 }}
               >
-                <ArrowsRightLeftIcon className="h-5 w-5 text-white" />
-                <span className="text-white">Switch Network</span>
+                <ArrowsRightLeftIcon className="h-5 w-5" style={{ color: isDarkMode ? "white" : "black" }} />
+                <span style={{ color: isDarkMode ? "white" : "black" }}>Switch Network</span>
               </button>
             </li>
           ) : null}
@@ -194,7 +212,7 @@ export const AngularWalletAddress = ({
               type="button"
               onClick={() => disconnect()}
             >
-              <ArrowLeftEndOnRectangleIcon className="h-5 w-5 text-[#FB3748]" />
+              <ArrowLeftEndOnRectangleIcon className="h-5 w-5" style={{ color: "#FB3748" }} />
               <span style={{ color: "#FB3748" }}>Disconnect</span>
             </button>
           </li>

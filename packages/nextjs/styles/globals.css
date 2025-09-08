@@ -147,6 +147,10 @@ p {
   color: var(--figma-sky-blue);
 }
 
+[data-theme="light"] .variable-name {
+  color: rgba(24, 24, 24, 1);
+}
+
 /* Reusable Typography */
 .typography-uppercase {
   color: var(--text-sub-600, rgba(255, 255, 255, 0.60));
@@ -186,6 +190,11 @@ p {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+[data-theme="light"] .tab-button.active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(213, 213, 213, 1) 100%);
+  box-shadow: 0 2px 4px rgba(171, 171, 171, 1);
+}
+
 .tab-button.active .tab-text {
   color: #333;
 }
@@ -203,6 +212,10 @@ p {
   color: var(--text-sub-600, rgba(255, 255, 255, 0.60));
 }
 
+[data-theme="light"] .param-name {
+  color: rgba(24, 24, 24, 1);
+}
+
 /* Input Styling */
 .input-container {
   padding: var(--spacing-lg, 12px) var(--spacing-xl, 16px);
@@ -212,6 +225,12 @@ p {
   border-radius: var(--spacing-md, 8px);
   background: var(--bg-surface-input-20, rgba(255, 255, 255, 0.04));
   backdrop-filter: blur(25px);
+}
+
+/* Light mode input styling */
+[data-theme="light"] .input-container {
+  background: rgba(0, 0, 0, 0.04);
+  backdrop-filter: none;
 }
 
 .input-text {
@@ -225,6 +244,11 @@ p {
   letter-spacing: -0.14px;
 }
 
+/* Light mode input text styling */
+[data-theme="light"] .input-text {
+  color: rgba(24, 24, 24, 0.4);
+}
+
 /* Input field overrides */
 .input-container .flex.border-2.border-base-300.bg-base-200.rounded-full {
   border-radius: var(--spacing-md, 8px) !important;
@@ -235,6 +259,12 @@ p {
   gap: 8px !important;
   align-items: center !important;
   align-self: stretch !important;
+}
+
+/* Light mode input field overrides */
+[data-theme="light"] .input-container .flex.border-2.border-base-300.bg-base-200.rounded-full {
+  background: rgba(0, 0, 0, 0.04) !important;
+  backdrop-filter: none !important;
 }
 
 .input-container .input.input-ghost {
@@ -255,6 +285,11 @@ p {
   outline: none !important;
 }
 
+/* Light mode input text color */
+[data-theme="light"] .input-container .input.input-ghost {
+  color: rgba(24, 24, 24, 0.4) !important;
+}
+
 .input-container .input.input-ghost:focus,
 .input-container .input.input-ghost::placeholder {
   background: transparent !important;
@@ -267,6 +302,23 @@ p {
   font-weight: 500 !important;
   line-height: 20px !important;
   letter-spacing: -0.14px !important;
+}
+
+/* Light mode input placeholder and focus color */
+[data-theme="light"] .input-container .input.input-ghost::placeholder {
+  color: rgba(24, 24, 24, 0.4) !important;
+}
+
+/* Input text color when typing - light mode */
+[data-theme="light"] .input-container .input.input-ghost:focus,
+[data-theme="light"] .input-container .input.input-ghost:not(:placeholder-shown) {
+  color: rgba(24, 24, 24, 1) !important;
+}
+
+/* Input text color when typing - dark mode */
+[data-theme="dark"] .input-container .input.input-ghost:focus,
+[data-theme="dark"] .input-container .input.input-ghost:not(:placeholder-shown) {
+  color: white !important;
 }
 
 /* Button Styles */
@@ -358,27 +410,11 @@ p {
 .contract-tab-button {
   padding: 8px 16px;
   border-radius: 9999px;
-  color: var(--text-strong-950, #FFFFFF);
   font-family: Inter, sans-serif;
   font-weight: 500;
   transition: all 0.2s ease;
-  border: none;
   cursor: pointer;
-}
-
-.contract-tab-button.selected {
-  background-color: #E3066E;
-}
-
-.contract-tab-button.selected:hover {
-  background-color: #E3066E;
-}
-
-.contract-tab-button.unselected {
-  background-color: transparent;
-  border: 1px solid var(--stroke-sub-20, rgba(255, 255, 255, 0.20));
-}
-
-.contract-tab-button.unselected:hover {
-  border-color: rgba(255, 255, 255, 0.30);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

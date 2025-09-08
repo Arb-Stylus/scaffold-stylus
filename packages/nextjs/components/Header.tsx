@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { SwitchTheme } from "./SwitchTheme";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
@@ -30,6 +31,8 @@ export const menuLinks: HeaderMenuLink[] = [
 
 export const HeaderMenuLinks = () => {
   const pathname = usePathname();
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = useMemo(() => resolvedTheme === "dark", [resolvedTheme]);
 
   return (
     <>
@@ -45,7 +48,13 @@ export const HeaderMenuLinks = () => {
                 isActive ? "shadow-md" : ""
               } hover:bg-secondary hover:shadow-md focus:!bg-secondary active:!text-neutral py-1.5 px-3 text-sm rounded-full gap-2 grid grid-flow-col`}
               style={{
-                color: isActive ? "#2B2B2B" : "var(--text-sub-600, rgba(255, 255, 255, 0.60))",
+                color: isActive
+                  ? isDarkMode
+                    ? "#2B2B2B"
+                    : "black"
+                  : isDarkMode
+                    ? "var(--text-sub-600, rgba(255, 255, 255, 0.60))"
+                    : "black",
                 fontFamily: "Orbitron, sans-serif",
                 fontSize: "14px",
                 fontWeight: 700,
@@ -74,6 +83,8 @@ export const Header = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const burgerMenuRef = useRef<HTMLDivElement>(null);
   const { targetNetwork } = useTargetNetwork();
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = useMemo(() => resolvedTheme === "dark", [resolvedTheme]);
   const isLocalNetwork = targetNetwork?.id === arbitrumNitro.id;
   useOutsideClick(
     burgerMenuRef,
@@ -123,7 +134,7 @@ export const Header = () => {
           <div className="flex flex-col">
             <span
               style={{
-                color: "#FFF",
+                color: isDarkMode ? "#FFF" : "black",
                 fontFamily: "Orbitron, sans-serif",
                 fontSize: "16px",
                 fontWeight: 700,
@@ -136,7 +147,7 @@ export const Header = () => {
             </span>
             <span
               style={{
-                color: "#FFF",
+                color: isDarkMode ? "#FFF" : "black",
                 fontFamily: "Inter, sans-serif",
                 fontSize: "12px",
                 fontWeight: 600,
@@ -153,7 +164,12 @@ export const Header = () => {
       </div>
       <div className="flex items-center gap-4 navbar-end flex-grow mr-4">
         <RainbowKitCustomConnectButton />
-        <div className="h-6 w-px bg-white opacity-20"></div>
+        <div
+          className="h-6 w-px opacity-20"
+          style={{
+            backgroundColor: isDarkMode ? "white" : "black",
+          }}
+        ></div>
         <SwitchTheme className={`pointer-events-auto ${isLocalNetwork ? "self-end md:self-auto" : ""}`} />
       </div>
     </div>

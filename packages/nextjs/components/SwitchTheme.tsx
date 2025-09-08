@@ -40,15 +40,15 @@ export const SwitchTheme = ({ className }: { className?: string }) => {
             justifyContent: "center",
             cursor: "pointer",
             borderRadius: "50%",
-            background: "rgba(25, 144, 196, 0.30)",
-            border: "1px solid #30B4ED",
+            background: isDarkMode ? "rgba(25, 144, 196, 0.30)" : "rgba(227, 6, 110, 0.30)",
+            border: isDarkMode ? "1px solid #30B4ED" : "1px solid rgba(227, 6, 110, 1)",
             position: "relative",
           }}
         >
           <SunIcon
             className="swap-on h-5 w-5"
             style={{
-              color: "#30B4ED",
+              color: isDarkMode ? "#30B4ED" : "rgba(227, 6, 110, 1)",
               position: "absolute",
               top: "50%",
               left: "50%",
