@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Balance } from "../Balance";
 import { AddressInfoDropdown } from "./AddressInfoDropdown";
+import { AngularWalletAddress } from "./AngularWalletAddress";
 import { AddressQRCodeModal } from "./AddressQRCodeModal";
 import { BurnerWalletModal } from "./BurnerWalletModal";
 import { WrongNetworkDropdown } from "./WrongNetworkDropdown";
@@ -64,7 +65,7 @@ export const RainbowKitCustomConnectButton = () => {
                         {chain.name}
                       </span>
                     </div>
-                    <AddressInfoDropdown
+                    <AngularWalletAddress
                       address={account.address as Address}
                       displayName={account.displayName}
                       ensAvatar={account.ensAvatar}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { parseEther } from "viem";
+import { useTheme } from "next-themes";
 import { CommonInputProps, InputBase, IntegerVariant, isValidInteger } from "~~/components/scaffold-eth";
 
 type IntegerInputProps = CommonInputProps<string> & {
@@ -16,6 +17,8 @@ export const IntegerInput = ({
   variant = IntegerVariant.UINT256,
   disableMultiplyBy1e18 = false,
 }: IntegerInputProps) => {
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = resolvedTheme === "dark";
   const [inputError, setInputError] = useState(false);
   const multiplyBy1e18 = useCallback(() => {
     if (!value) {
@@ -33,31 +36,38 @@ export const IntegerInput = ({
   }, [value, variant]);
 
   return (
-    <InputBase
-      name={name}
-      value={value}
-      placeholder={placeholder}
-      error={inputError}
-      onChange={onChange}
-      disabled={disabled}
-      suffix={
-        !inputError &&
-        !disableMultiplyBy1e18 && (
-          <div
-            className="space-x-4 flex tooltip tooltip-top tooltip-secondary before:content-[attr(data-tip)] before:right-[-10px] before:left-auto before:transform-none"
-            data-tip="Multiply by 1e18 (wei)"
-          >
-            <button
-              className={`${disabled ? "cursor-not-allowed" : "cursor-pointer"} font-semibold px-4 text-accent`}
-              onClick={multiplyBy1e18}
-              disabled={disabled}
-              type="button"
+    <div
+      className="integer-input-wrapper input-container"
+      style={{
+        padding: "12px 16px",
+      }}
+    >
+      <InputBase
+        name={name}
+        value={value}
+        placeholder={placeholder}
+        error={inputError}
+        onChange={onChange}
+        disabled={disabled}
+        suffix={
+          !inputError &&
+          !disableMultiplyBy1e18 && (
+            <div
+              className="space-x-4 flex tooltip tooltip-top tooltip-secondary before:content-[attr(data-tip)] before:right-[-10px] before:left-auto before:transform-none"
+              data-tip="Multiply by 1e18 (wei)"
             >
-              ∗
-            </button>
-          </div>
-        )
-      }
-    />
+              <button
+                className={`${disabled ? "cursor-not-allowed" : "cursor-pointer"} font-semibold px-4 text-accent`}
+                onClick={multiplyBy1e18}
+                disabled={disabled}
+                type="button"
+              >
+                ∗
+              </button>
+            </div>
+          )
+        }
+      />
+    </div>
   );
 };
