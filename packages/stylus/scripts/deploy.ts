@@ -36,6 +36,11 @@ export default async function deployScript(deployOptions: DeployOptions) {
     ...deployOptions,
   });
 
+  await deployStylusContract({
+    contract: "counter",
+    ...deployOptions,
+  });
+
   // EXAMPLE: Deploy to Orbit Chains, uncomment to try
   // await deployStylusContract({
   //   contract: "counter",
