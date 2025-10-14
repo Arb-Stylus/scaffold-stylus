@@ -1,13 +1,19 @@
-import { DM_Sans } from "next/font/google";
+import { Inter, Orbitron } from "next/font/google";
 import "@rainbow-me/rainbowkit/styles.css";
 import { Metadata } from "next";
 import { ScaffoldEthAppWithProviders } from "~~/components/ScaffoldEthAppWithProviders";
 import { ThemeProvider } from "~~/components/ThemeProvider";
 import "~~/styles/globals.css";
 
-const dmSans = DM_Sans({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-dm-sans",
+  variable: "--font-inter",
+});
+
+const orbitron = Orbitron({
+  subsets: ["latin"],
+  variable: "--font-orbitron",
+  weight: ["400", "700", "900"],
 });
 
 const baseUrl = process.env.VERCEL_URL
@@ -55,7 +61,7 @@ export const metadata: Metadata = {
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <html suppressHydrationWarning>
-      <body className={`${dmSans.variable} font-sans`} suppressHydrationWarning>
+      <body className={`${inter.variable} ${orbitron.variable} font-sans`} suppressHydrationWarning>
         <ThemeProvider>
           <ScaffoldEthAppWithProviders>{children}</ScaffoldEthAppWithProviders>
         </ThemeProvider>

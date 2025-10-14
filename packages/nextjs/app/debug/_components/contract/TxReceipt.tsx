@@ -1,42 +1,58 @@
+import { useState } from "react";
 import { TransactionReceipt } from "viem";
-import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, DocumentDuplicateIcon, ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { ObjectFieldDisplay } from "~~/app/debug/_components/contract";
 import { useCopyToClipboard } from "~~/hooks/scaffold-eth/useCopyToClipboard";
 import { replacer } from "~~/utils/scaffold-eth/common";
 
 export const TxReceipt = ({ txResult }: { txResult: TransactionReceipt }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const { copyToClipboard: copyTxResultToClipboard, isCopiedToClipboard: isTxResultCopiedToClipboard } =
     useCopyToClipboard();
 
   return (
-    <div className="flex text-sm rounded-3xl peer-checked:rounded-b-none min-h-0 bg-secondary py-0">
-      <div className="mt-1 pl-2">
-        {isTxResultCopiedToClipboard ? (
-          <CheckCircleIcon
-            className="ml-1.5 text-xl font-normal text-base-content h-5 w-5 cursor-pointer"
-            aria-hidden="true"
-          />
-        ) : (
-          <DocumentDuplicateIcon
-            className="ml-1.5 text-xl font-normal h-5 w-5 cursor-pointer"
-            aria-hidden="true"
-            onClick={() => copyTxResultToClipboard(JSON.stringify(txResult, replacer, 2))}
-          />
-        )}
-      </div>
-      <div tabIndex={0} className="flex-wrap collapse collapse-arrow">
-        <input type="checkbox" className="min-h-0! peer" />
-        <div className="collapse-title text-sm min-h-0! py-1.5 pl-1 after:top-4!">
+    <div
+      className="text-sm rounded-lg min-h-0 p-4"
+      style={{
+        background: "var(--bg-surface-input-20, rgba(255, 255, 255, 0.04))",
+        backdropFilter: "blur(25px)",
+        border: "none",
+      }}
+    >
+      {/* Fixed Header */}
+      <div className="flex items-center">
+        <div className="flex items-center">
+          {isTxResultCopiedToClipboard ? (
+            <CheckCircleIcon
+              className="text-xl font-normal text-base-content h-5 w-5 cursor-pointer"
+              aria-hidden="true"
+            />
+          ) : (
+            <DocumentDuplicateIcon
+              className="text-xl font-normal h-5 w-5 cursor-pointer"
+              aria-hidden="true"
+              onClick={() => copyTxResultToClipboard(JSON.stringify(txResult, replacer, 2))}
+            />
+          )}
+        </div>
+        <div className="flex-1 flex items-center pl-2">
           <strong>Transaction Receipt</strong>
         </div>
-        <div className="collapse-content overflow-auto bg-secondary rounded-t-none rounded-3xl pl-0!">
+        <div className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+          {isExpanded ? <ChevronUpIcon className="h-5 w-5" /> : <ChevronDownIcon className="h-5 w-5" />}
+        </div>
+      </div>
+
+      {/* Collapsible Content */}
+      {isExpanded && (
+        <div className="overflow-auto rounded-t-none mt-2">
           <pre className="text-xs">
             {Object.entries(txResult).map(([k, v]) => (
               <ObjectFieldDisplay name={k} value={v} size="xs" leftPad={false} key={k} />
             ))}
           </pre>
         </div>
-      </div>
+      )}
     </div>
   );
 };
