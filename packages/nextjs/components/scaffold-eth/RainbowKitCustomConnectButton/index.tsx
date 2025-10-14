@@ -4,9 +4,9 @@
 import { useState } from "react";
 import { Balance } from "../Balance";
 import { AddressInfoDropdown } from "./AddressInfoDropdown";
-import { AngularWalletAddress } from "./AngularWalletAddress";
 import { AddressQRCodeModal } from "./AddressQRCodeModal";
 import { BurnerWalletModal } from "./BurnerWalletModal";
+import { RevealBurnerPKModal } from "./RevealBurnerPKModal";
 import { WrongNetworkDropdown } from "./WrongNetworkDropdown";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Address } from "viem";
@@ -65,13 +65,14 @@ export const RainbowKitCustomConnectButton = () => {
                         {chain.name}
                       </span>
                     </div>
-                    <AngularWalletAddress
+                    <AddressInfoDropdown
                       address={account.address as Address}
                       displayName={account.displayName}
                       ensAvatar={account.ensAvatar}
                       onSwitchAccount={() => setIsBurnerModalOpen(true)}
                     />
                     <AddressQRCodeModal address={account.address as Address} modalId="qrcode-modal" />
+                    <RevealBurnerPKModal />
                   </>
                 );
               })()}
