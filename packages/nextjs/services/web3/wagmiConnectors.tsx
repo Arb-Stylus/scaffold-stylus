@@ -38,6 +38,7 @@ const wallets = [
  */
 export const wagmiConnectors = () => {
   // Only create connectors on client-side to avoid SSR issues
+  // TODO: update when https://github.com/rainbow-me/rainbowkit/issues/2476 is resolved
   if (typeof window === "undefined") {
     return [];
   }
