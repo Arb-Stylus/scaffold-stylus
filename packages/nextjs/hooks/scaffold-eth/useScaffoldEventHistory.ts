@@ -55,7 +55,7 @@ const getEvents = async (
 };
 
 /**
- * @deprecated **Recommended only for local (hardhat/anvil) chains and development.**
+ * @deprecated **Recommended only for local (arbitrum nitro) chains and development.**
  * It uses getLogs which can overload RPC endpoints (especially on L2s with short block times).
  * For production, use an indexer such as ponder.sh or similar to query contract events efficiently.
  *
