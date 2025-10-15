@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { useTheme } from "next-themes";
 import { InheritanceTooltip } from "./InheritanceTooltip";
 import { displayTxResult } from "./utilsDisplay";
 import { Abi, AbiFunction } from "abitype";
@@ -27,6 +28,8 @@ export const DisplayVariable = ({
   inheritedFrom,
 }: DisplayVariableProps) => {
   const { targetNetwork } = useTargetNetwork();
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = useMemo(() => resolvedTheme === "dark", [resolvedTheme]);
 
   const {
     data: result,
@@ -59,7 +62,14 @@ export const DisplayVariable = ({
   return (
     <div className="space-y-1 pb-2">
       <div className="flex items-center">
-        <h3 className="font-medium text-lg mb-0 break-all">{abiFunction.name}</h3>
+        <h3
+          className="font-medium text-lg mb-0 break-all"
+          style={{
+            color: isDarkMode ? "#30B4ED" : "#30B4ED",
+          }}
+        >
+          {abiFunction.name}
+        </h3>
         <button className="btn btn-ghost btn-xs" onClick={async () => await refetch()}>
           {isFetching ? (
             <span className="loading loading-spinner loading-xs"></span>
@@ -75,6 +85,9 @@ export const DisplayVariable = ({
             className={`break-all block transition bg-transparent ${
               showAnimation ? "bg-warning rounded-sm animate-pulse-fast" : ""
             }`}
+            style={{
+              color: isDarkMode ? "white" : "black",
+            }}
           >
             {displayTxResult(result)}
           </div>

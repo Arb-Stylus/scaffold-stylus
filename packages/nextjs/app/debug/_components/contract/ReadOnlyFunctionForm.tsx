@@ -71,7 +71,7 @@ export const ReadOnlyFunctionForm = ({
 
   return (
     <div className="flex flex-col gap-3 py-5 first:pt-0 last:pb-1">
-      <p className="font-medium my-0 break-words">
+      <p className="font-medium my-0 break-words function-name">
         {abiFunction.name}
         <InheritanceTooltip inheritedFrom={inheritedFrom} />
       </p>
@@ -79,14 +79,21 @@ export const ReadOnlyFunctionForm = ({
       <div className="flex flex-col md:flex-row justify-between gap-2 flex-wrap">
         <div className="grow w-full md:max-w-[80%]">
           {result !== null && result !== undefined && (
-            <div className="bg-secondary rounded-3xl text-sm px-4 py-1.5 break-words overflow-auto">
+            <div
+              className="rounded-lg text-sm px-4 py-1.5 break-words overflow-auto"
+              style={{
+                background: "var(--bg-surface-input-20, rgba(255, 255, 255, 0.04))",
+                backdropFilter: "blur(25px)",
+                border: "none",
+              }}
+            >
               <p className="font-bold m-0 mb-1">Result:</p>
               <pre className="whitespace-pre-wrap break-words">{displayTxResult(result, "sm")}</pre>
             </div>
           )}
         </div>
         <button
-          className="btn btn-secondary btn-sm self-end md:self-start"
+          className="read-button"
           onClick={async () => {
             const { data } = await refetch();
             setResult(data);
@@ -94,7 +101,7 @@ export const ReadOnlyFunctionForm = ({
           disabled={isFetching}
         >
           {isFetching && <span className="loading loading-spinner loading-xs"></span>}
-          Read 📡
+          Read
         </button>
       </div>
     </div>

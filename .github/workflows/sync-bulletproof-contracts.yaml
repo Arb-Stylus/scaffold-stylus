@@ -1,9 +1,9 @@
-name: Sync Main to bulletproof-contracts for E2E Tests
+name: Sync Develop to bulletproof-contracts for E2E Tests
 
 on:
   push:
     branches:
-      - main
+      - develop
 
 jobs:
   sync-and-update:
@@ -13,11 +13,11 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout main branch
+      - name: Checkout develop branch
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          ref: main
+          ref: develop
 
       - name: Configure Git
         run: |
@@ -29,9 +29,9 @@ jobs:
           git fetch origin
           git checkout bulletproof-contracts
 
-      - name: Merge main into bulletproof-contracts
+      - name: Merge develop into bulletproof-contracts
         run: |
-          git merge -X theirs main --no-edit || echo "No changes to merge"
+          git merge -X theirs develop --no-edit || echo "No changes to merge"
 
       - name: Add deploy bulletproof contracts to deploy script
         run: |
