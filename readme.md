@@ -45,7 +45,7 @@ Alternatively, install Rust and the Stylus CLI tool with Cargo:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-Check the [Rust installation guide](https://www.rust-lang.org/tools/install) for more information. 
+Check the [Rust installation guide](https://www.rust-lang.org/tools/install) for more information.
 
 Then install the Stylus CLI tools:
 
@@ -71,7 +71,24 @@ You should now have it available as a Cargo subcommand:
 cargo stylus --help
 ```
 
-### 2. Clone this repo & install dependencies
+### 2. Create a new project (recommended)
+
+Use the interactive setup to scaffold a new project:
+
+```bash
+npx create-stylus@latest
+```
+
+Then navigate into your project directory:
+
+```bash
+cd <project-name>
+yarn install
+# Initialize submodules (required for Nitro dev node)
+git submodule update --init --recursive
+```
+
+### 3. Clone this repo & install dependencies (alternative)
 
 ```bash
 git clone https://github.com/Arb-Stylus/scaffold-stylus.git
@@ -81,7 +98,7 @@ yarn install
 git submodule update --init --recursive
 ```
 
-### 3. Run a local network
+### 4. Run a local network
 
 In your first terminal:
 
@@ -91,7 +108,7 @@ yarn chain
 
 This command starts a local Stylus-compatible network using the Nitro dev node script (`./nitro-devnode/run-dev-node.sh`). The network runs on your local machine and can be used for testing and development. You can customize the Nitro dev node configuration in the `nitro-devnode` submodule.
 
-### 4. Deploy the test contract
+### 5. Deploy the test contract
 
 In your second terminal:
 
@@ -101,7 +118,7 @@ yarn deploy
 
 This command deploys a test smart contract to the local network. The contract is located in `packages/stylus/your-contract/src` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/stylus/scripts` to deploy the contract to the network. You can also customize the deploy script .
 
-### 5. Start your NextJS app
+### 6. Start your NextJS app
 
 In your third terminal:
 
@@ -111,7 +128,7 @@ yarn start
 
 Visit your app at: `http://localhost:3000`. You can interact with your smart contract using the **Debug Contracts** page, which provides a user-friendly interface for testing your contract's functions and viewing its state.
 
-### 6. Test your smart contract
+### 7. Test your smart contract
 
 ```bash
 yarn stylus:test
