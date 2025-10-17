@@ -39,7 +39,17 @@ If you prefer a one-liner, install via stylusup (recommended):
 curl -s https://stylusup.sh/install.sh | sh
 ```
 
-Alternatively, install Rust and the Stylus CLI tool with Cargo:
+What it does:
+
+- Installing Rust (if not present) to provide the core programming environment.
+
+- Adding WebAssembly support to compile Rust code for blockchain environments.
+
+- Installing cargo-stylus, a tool for creating and managing Stylus projects.
+
+- Optionally collecting and sending telemetry data to track installation statistics.
+
+### Alternatively, install Rust and the Stylus CLI tool with Cargo:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
