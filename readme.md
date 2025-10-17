@@ -35,19 +35,16 @@ To get started with Scaffold-Stylus, follow the steps below:
 
 If you prefer a one-liner, install via stylusup (recommended):
 
+Tool for installing all the Stylus essentials for development. [Stylusup](https://stylusup.sh/#) will install the latest stable versions of:
+
+- [Rust](https://www.rust-lang.org/tools/install) (if not present) to provide the core programming environment.
+- [cargo-stylus](https://github.com/OffchainLabs/cargo-stylus/blob/main/README.md) (latest version) a tool for creating and managing Stylus projects.
+- Adding WebAssembly support to compile Rust code for blockchain environments.
+- Optionally collecting and sending telemetry data to track installation statistics.
+
 ```bash
 curl -s https://stylusup.sh/install.sh | sh
 ```
-
-What it does:
-
-- Installing Rust (if not present) to provide the core programming environment.
-
-- Adding WebAssembly support to compile Rust code for blockchain environments.
-
-- Installing cargo-stylus, a tool for creating and managing Stylus projects.
-
-- Optionally collecting and sending telemetry data to track installation statistics.
 
 ### Alternatively, install Rust and the Stylus CLI tool with Cargo:
 
