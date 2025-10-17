@@ -58,8 +58,8 @@ cargo install --force cargo-stylus cargo-stylus-check
 Set default `toolchain` match `rust-toolchain.toml` and add the `wasm32-unknown-unknown` build target to your Rust compiler:
 
 ```bash
-rustup default 1.87
-rustup target add wasm32-unknown-unknown --toolchain 1.87
+rustup default 1.89
+rustup target add wasm32-unknown-unknown --toolchain 1.89
 ```
 
 You should now have it available as a Cargo subcommand:
@@ -179,7 +179,7 @@ To deploy your contracts to other networks (other than the default local Nitro d
    Open `packages/nextjs/scaffold.config.ts` and update the `targetNetworks` array to include your target chain. This ensures your frontend connects to the correct network and generates the proper ABI in `deployedContracts.ts`:
 
    ```ts
-   import * as chains from "viem/chains";
+   import * as chains from "./utils/scaffold-stylus/supportedChains";
    // ...
    targetNetworks: [chains.arbitrumSepolia],
    ```
@@ -323,18 +323,6 @@ If you face issues with the ABI not being generated, you can try one of the foll
 
   ```bash
   yarn run dev
-  ```
-
-- **Modify the Script**: In the `run-dev-node.sh` script, replace the line:
-
-  ```bash
-  cargo stylus export-abi
-  ```
-
-  with:
-
-  ```bash
-  cargo run --manifest-path=Cargo.toml --features export-abi
   ```
 
 - **Access Denied Issue**: If you encounter an access denied permission error during ABI generation, run the following command and then execute the script again:
