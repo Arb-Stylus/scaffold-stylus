@@ -24,7 +24,6 @@ Before you begin, you need to install the following tools:
 - [Node (>= v20.18)](https://nodejs.org/en/download/)
 - Yarn ([v2+](https://yarnpkg.com/getting-started/install))
 - [Git](https://git-scm.com/downloads)
-- [Rust](https://www.rust-lang.org/tools/install)
 - [Docker](https://docs.docker.com/engine/install/)
 - [Foundry Cast](https://getfoundry.sh/)
 
@@ -32,19 +31,23 @@ Before you begin, you need to install the following tools:
 
 To get started with Scaffold-Stylus, follow the steps below:
 
-### 1. Clone this repo & install dependencies
+### 1. Install Stylus tools (or use stylusup)
+
+If you prefer a one-liner, install via stylusup (recommended):
 
 ```bash
-git clone https://github.com/Arb-Stylus/scaffold-stylus.git
-cd scaffold-stylus
-yarn install
-# Initialize submodules (required for Nitro dev node)
-git submodule update --init --recursive
+curl -s https://stylusup.sh/install.sh | sh
 ```
 
-### 2. Install Stylus tools
+Alternatively, install Rust and the Stylus CLI tool with Cargo:
 
-Install [Rust](https://www.rust-lang.org/tools/install), and then install the Stylus CLI tool with Cargo:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+Check the [Rust installation guide](https://www.rust-lang.org/tools/install) for more information. 
+
+Then install the Stylus CLI tools:
 
 ```bash
 cargo install --force cargo-stylus cargo-stylus-check
@@ -66,6 +69,16 @@ You should now have it available as a Cargo subcommand:
 
 ```bash
 cargo stylus --help
+```
+
+### 2. Clone this repo & install dependencies
+
+```bash
+git clone https://github.com/Arb-Stylus/scaffold-stylus.git
+cd scaffold-stylus
+yarn install
+# Initialize submodules (required for Nitro dev node)
+git submodule update --init --recursive
 ```
 
 ### 3. Run a local network
