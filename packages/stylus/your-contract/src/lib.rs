@@ -71,8 +71,6 @@ impl YourContract {
         // Initialize Ownable with the initial owner using OpenZeppelin pattern
         self.ownable.constructor(initial_owner)?;
         self.greeting.set_str("Building Unstoppable Apps!!!");
-        self.premium.set(false);
-        self.total_counter.set(U256::ZERO);
         Ok(())
     }
 
