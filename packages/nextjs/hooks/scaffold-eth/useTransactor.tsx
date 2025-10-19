@@ -2,9 +2,10 @@ import { Hash, SendTransactionParameters, TransactionReceipt, WalletClient } fro
 import { Config, useWalletClient } from "wagmi";
 import { getPublicClient } from "wagmi/actions";
 import { SendTransactionMutate } from "wagmi/query";
+import scaffoldConfig from "~~/scaffold.config";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
-import { getParsedError, notification } from "~~/utils/scaffold-eth";
-import { getBlockExplorerTxLink } from "~~/utils/scaffold-stylus";
+import { getParsedErrorWithAllAbis, notification } from "~~/utils/scaffold-eth";
+import { AllowedChainIds, getBlockExplorerTxLink } from "~~/utils/scaffold-stylus";
 import { TransactorFuncOptions } from "~~/utils/scaffold-eth/contract";
 
 type TransactionFunc = (
@@ -51,8 +52,9 @@ export const useTransactor = (_walletClient?: WalletClient): TransactionFunc => 
     let transactionHash: Hash | undefined = undefined;
     let transactionReceipt: TransactionReceipt | undefined;
     let blockExplorerTxURL = "";
+    let chainId: number = scaffoldConfig.targetNetworks[0].id;
     try {
-      const network = await walletClient.getChainId();
+      chainId = await walletClient.getChainId();
       // Get full transaction from public client
       const publicClient = getPublicClient(wagmiConfig);
 
@@ -68,7 +70,7 @@ export const useTransactor = (_walletClient?: WalletClient): TransactionFunc => 
       }
       notification.remove(notificationId);
 
-      blockExplorerTxURL = network ? getBlockExplorerTxLink(network, transactionHash) : "";
+      blockExplorerTxURL = chainId ? getBlockExplorerTxLink(chainId, transactionHash) : "";
 
       notificationId = notification.loading(
         <TxnNotification message="Waiting for transaction to complete." blockExplorerLink={blockExplorerTxURL} />,
@@ -95,7 +97,7 @@ export const useTransactor = (_walletClient?: WalletClient): TransactionFunc => 
         notification.remove(notificationId);
       }
       console.error("⚡️ ~ file: useTransactor.ts ~ error", error);
-      const message = getParsedError(error);
+      const message = getParsedErrorWithAllAbis(error, chainId as AllowedChainIds);
 
       // if receipt was reverted, show notification with block explorer link and return error
       if (transactionReceipt?.status === "reverted") {

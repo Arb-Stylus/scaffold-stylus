@@ -24,7 +24,6 @@ Before you begin, you need to install the following tools:
 - [Node (>= v20.18)](https://nodejs.org/en/download/)
 - Yarn ([v2+](https://yarnpkg.com/getting-started/install))
 - [Git](https://git-scm.com/downloads)
-- [Rust](https://www.rust-lang.org/tools/install)
 - [Docker](https://docs.docker.com/engine/install/)
 - [Foundry Cast](https://getfoundry.sh/)
 
@@ -32,19 +31,30 @@ Before you begin, you need to install the following tools:
 
 To get started with Scaffold-Stylus, follow the steps below:
 
-### 1. Clone this repo & install dependencies
+### 1. Install Stylus tools (or use stylusup)
+
+If you prefer a one-liner, install via stylusup (recommended):
+
+Tool for installing all the Stylus essentials for development. [Stylusup](https://stylusup.sh/#) will install the latest stable versions of:
+
+- [Rust](https://www.rust-lang.org/tools/install) (if not present) to provide the core programming environment.
+- [cargo-stylus](https://github.com/OffchainLabs/cargo-stylus/blob/main/README.md) (latest version) a tool for creating and managing Stylus projects.
+- Adding WebAssembly support to compile Rust code for blockchain environments.
+- Optionally collecting and sending telemetry data to track installation statistics.
 
 ```bash
-git clone https://github.com/Arb-Stylus/scaffold-stylus.git
-cd scaffold-stylus
-yarn install
-# Initialize submodules (required for Nitro dev node)
-git submodule update --init --recursive
+curl -s https://stylusup.sh/install.sh | sh
 ```
 
-### 2. Install Stylus tools
+### Alternatively, install Rust and the Stylus CLI tool with Cargo:
 
-Install [Rust](https://www.rust-lang.org/tools/install), and then install the Stylus CLI tool with Cargo:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+Check the [Rust installation guide](https://www.rust-lang.org/tools/install) for more information.
+
+Then install the Stylus CLI tools:
 
 ```bash
 cargo install --force cargo-stylus cargo-stylus-check
@@ -58,8 +68,8 @@ cargo install --force cargo-stylus cargo-stylus-check
 Set default `toolchain` match `rust-toolchain.toml` and add the `wasm32-unknown-unknown` build target to your Rust compiler:
 
 ```bash
-rustup default 1.87
-rustup target add wasm32-unknown-unknown --toolchain 1.87
+rustup default 1.89
+rustup target add wasm32-unknown-unknown --toolchain 1.89
 ```
 
 You should now have it available as a Cargo subcommand:
@@ -68,7 +78,34 @@ You should now have it available as a Cargo subcommand:
 cargo stylus --help
 ```
 
-### 3. Run a local network
+### 2. Create a new project (recommended)
+
+Use the interactive setup to scaffold a new project:
+
+```bash
+npx create-stylus@latest
+```
+
+Then navigate into your project directory:
+
+```bash
+cd <project-name>
+yarn install
+# Initialize submodules (required for Nitro dev node)
+git submodule update --init --recursive
+```
+
+### 3. Clone this repo & install dependencies (alternative)
+
+```bash
+git clone https://github.com/Arb-Stylus/scaffold-stylus.git
+cd scaffold-stylus
+yarn install
+# Initialize submodules (required for Nitro dev node)
+git submodule update --init --recursive
+```
+
+### 4. Run a local network
 
 In your first terminal:
 
@@ -78,7 +115,7 @@ yarn chain
 
 This command starts a local Stylus-compatible network using the Nitro dev node script (`./nitro-devnode/run-dev-node.sh`). The network runs on your local machine and can be used for testing and development. You can customize the Nitro dev node configuration in the `nitro-devnode` submodule.
 
-### 4. Deploy the test contract
+### 5. Deploy the test contract
 
 In your second terminal:
 
@@ -88,7 +125,7 @@ yarn deploy
 
 This command deploys a test smart contract to the local network. The contract is located in `packages/stylus/your-contract/src` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/stylus/scripts` to deploy the contract to the network. You can also customize the deploy script .
 
-### 5. Start your NextJS app
+### 6. Start your NextJS app
 
 In your third terminal:
 
@@ -98,7 +135,7 @@ yarn start
 
 Visit your app at: `http://localhost:3000`. You can interact with your smart contract using the **Debug Contracts** page, which provides a user-friendly interface for testing your contract's functions and viewing its state.
 
-### 6. Test your smart contract
+### 7. Test your smart contract
 
 ```bash
 yarn stylus:test
@@ -179,7 +216,7 @@ To deploy your contracts to other networks (other than the default local Nitro d
    Open `packages/nextjs/scaffold.config.ts` and update the `targetNetworks` array to include your target chain. This ensures your frontend connects to the correct network and generates the proper ABI in `deployedContracts.ts`:
 
    ```ts
-   import * as chains from "viem/chains";
+   import * as chains from "./utils/scaffold-stylus/supportedChains";
    // ...
    targetNetworks: [chains.arbitrumSepolia],
    ```
@@ -218,162 +255,11 @@ Your contract must have an `initialize()` function as the replacement for the co
 
 ## Verify your contract (Highly Experimental)
 
-<details>
-
-#### Prerequisites
-
-Your contract must meet Arbiscan's verification requirements:
-
-- No external libraries
-- No constructor arguments
-- No custom optimization settings
-- No specific compiler version requirements
-
-Check full documentation for more [details](https://docs.arbitrum.io/stylus/how-tos/verifying-contracts-arbiscan#step-4-set-evm-version)
-
-### Stylus Local Verification (Under Development)
-
-Make sure your contract does not include constructor or constructor does not contain any args
-
-```rs
-[#constructor]
-pub fn constructor(&mut self)
-```
-
-The scaffold includes built-in local verification to ensure your Stylus contract deployments are reproducible. To enable verification during deployment, set `verify: true` in your deployment script:
-
-```ts
-await deployStylusContract({
-  contract: "your-contract",
-  verify: true,
-  ...deployOptions,
-});
-```
-
-This runs `cargo stylus verify` locally after deployment, which:
-
-- Verifies that the deployed bytecode matches your source code
-- Ensures reproducibility across different environments
-- Validates the deployment transaction
-
-**Note:** This feature is still under development and may not work as expected. Check full documentation for more [details](https://docs.arbitrum.io/stylus/how-tos/verifying-contracts)
-
-### Arbiscan Verification
-
-For public verification on Arbiscan, follow these steps:
-
-#### Steps
-
-1. **Create a dedicated repository** containing only your contract source code
-2. **Navigate to Arbiscan**:
-   - Go to [Arbiscan Verify Contract](https://arbiscan.io/verifyContract)
-   - Enter your deployed contract address
-3. **Follow the verification process**:
-   - Select "Solidity (Standard-Json-Input)" as the compiler type
-   - Enter your contract source code (github link)
-   - Provide any constructor arguments if applicable
-   - Submit for verification
-
-Check official document for detail instructions: <https://docs.arbitrum.io/stylus/how-tos/verifying-contracts-arbiscan>
-
-> **Note**: Arbiscan verification for Stylus contracts is still evolving. If you encounter issues, consider using the local verification method or check Arbiscan's latest documentation for Stylus-specific instructions.
-
-**Tip**: If you still want to initialize your contract, then add your own `initialize()` function and initialize it yourself
-Sample :
-
-```
-pub fn initialize(&mut self, initial_number: U256) {
-   if !self.is_initialized.get() {
-      self.number.set(initial_number);
-      self.is_initialized.set(true);
-   } else {
-      panic!("Counter already initialized");
-   }
-}
-```
-
-Then use `cast --rpc-url <your-rpc-url> --private-key <your-private-key> [deployed-contract-address] "initialize(uint256)" <initial_number>`
-Or check [`deploy_contract.ts` lines 95-118](packages/stylus/scripts/deploy_contract.ts#L95-L118) and add it to your `deploy.ts` script.
-
-</details>
+Visit our [Verify section](https://arb-stylus.github.io/scaffold-stylus-docs/recipes/verify-contract-custom-chain)
 
 ## 🛠️ Troubleshooting Common Issues
 
-#### 1. `stylus` Not Recognized
-
-If you encounter an error stating that `stylus` is not recognized as an external or internal command, run the following command in your terminal:
-
-```bash
-sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
-```
-
-After that, check if `stylus` is installed by running:
-
-```bash
-cargo stylus --version
-```
-
-If the version is displayed, `stylus` has been successfully installed and the path is correctly set.
-
-#### 2. ABI Not Generated
-
-If you face issues with the ABI not being generated, you can try one of the following solutions:
-
-- **Restart Docker Node**: Pause and restart the Docker node and the local setup of the project. You can do this by deleting all ongoing running containers and then restarting the local terminal using:
-
-  ```bash
-  yarn run dev
-  ```
-
-- **Modify the Script**: In the `run-dev-node.sh` script, replace the line:
-
-  ```bash
-  cargo stylus export-abi
-  ```
-
-  with:
-
-  ```bash
-  cargo run --manifest-path=Cargo.toml --features export-abi
-  ```
-
-- **Access Denied Issue**: If you encounter an access denied permission error during ABI generation, run the following command and then execute the script again:
-
-  ```bash
-  sudo chown -R $USER:$USER target
-  ```
-
-#### 3. 🚨 Fixing Line Endings and Running Shell Scripts in WSL
-
-> ⚠️ This guide provides step-by-step instructions to resolve the Command not found error caused by CRLF line endings in shell scripts when running in a WSL environment.
-
-Shell scripts created in Windows often have `CRLF` line endings, which cause issues in Unix-like environments such as WSL. To fix this:
-
-**Using `dos2unix`:**
-
-1. Install `dos2unix` (if not already installed):
-
-   ```bash
-   sudo apt install dos2unix
-   ```
-
-2. Convert the script's line endings:
-
-   ```bash
-   dos2unix run-dev-node.sh
-   ```
-
-3. Make the Script Executable:
-
-   ```bash
-   chmod +x run-dev-node.sh
-   ```
-
-4. Run the Script in WSL:
-
-   ```bash
-   bash run-dev-node.sh
-   ```
+Visit our [Troubleshooting section](https://arb-stylus.github.io/scaffold-stylus-docs/quick-start/troubleshooting)
 
 ---
 
