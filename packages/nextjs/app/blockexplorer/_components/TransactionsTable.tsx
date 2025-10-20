@@ -12,15 +12,17 @@ export const TransactionsTable = ({ blocks, transactionReceipts }: TransactionsT
     <div className="flex justify-center px-4 md:px-0">
       <div className="overflow-x-auto w-full p-4 shadow-2xl rounded-3xl border border-color">
         <table className="table w-full md:table-md table-sm">
-          <tr className="rounded-xl bg-[#1B1B1B] text-white">
-            <th className="rounded-l-xl">Transaction Hash</th>
-            <th>Function Called</th>
-            <th>Block Number</th>
-            <th>Time Mined</th>
-            <th>From</th>
-            <th>To</th>
-            <th className="text-end rounded-r-xl">Value ({targetNetwork.nativeCurrency.symbol})</th>
-          </tr>
+          <thead>
+            <tr className="rounded-xl bg-[#1B1B1B] text-white">
+              <th className="rounded-l-xl">Transaction Hash</th>
+              <th>Function Called</th>
+              <th>Block Number</th>
+              <th>Time Mined</th>
+              <th>From</th>
+              <th>To</th>
+              <th className="text-end rounded-r-xl">Value ({targetNetwork.nativeCurrency.symbol})</th>
+            </tr>
+          </thead>
           <tbody>
             {blocks.map(block =>
               (block.transactions as TransactionWithFunction[]).map(tx => {

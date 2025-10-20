@@ -247,11 +247,7 @@ yarn deploy --network <network>
 
 ### Deploy to Orbit Chains
 
-Before deploying, you would have to ensure that your `deployStylusContract` function on your `deploy.ts` function has the `isOrbit` value set to `true` (example provided in `deploy.ts`).
-
-Your contract must have an `initialize()` function as the replacement for the constructor, since not all orbit chains support the constructor feature. Please leave it blank if you don't have any constructor.
-
-> Make sure you handle initialization properly in your contract, meaning it should only be called once and functions should not run if contract is not initialized.
+Visit our [Deploy to Orbit chain documentation](https://arb-stylus.github.io/scaffold-stylus-docs/deploying/deploy-to-orbit-chains) for detailed guide
 
 ## Verify your contract (Highly Experimental)
 
