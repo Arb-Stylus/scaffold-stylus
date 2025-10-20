@@ -29,4 +29,10 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ["next-env.d.ts"],
+    rules: {
+      "@typescript-eslint/triple-slash-reference": "off",
+    },
+  },
 ]);

@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Address as AddressType, createWalletClient, http, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { useAccount } from "wagmi";
+import { useTheme } from "next-themes";
 import { BanknotesIcon } from "@heroicons/react/24/outline";
+import { AngularBorder } from "~~/components/AngularBorder";
 import { Address, AddressInput, Balance, EtherInput } from "~~/components/scaffold-eth";
 import { useTransactor } from "~~/hooks/scaffold-eth";
 import { notification } from "~~/utils/scaffold-eth";
@@ -29,6 +31,11 @@ export const Faucet = () => {
   const [sendValue, setSendValue] = useState("");
 
   const { chain: ConnectedChain } = useAccount();
+  const { resolvedTheme } = useTheme();
+
+  const isDarkMode = useMemo(() => {
+    return resolvedTheme === "dark";
+  }, [resolvedTheme]);
 
   const faucetTxn = useTransactor(localWalletClient);
 
@@ -83,10 +90,38 @@ export const Faucet = () => {
 
   return (
     <div>
-      <label htmlFor="faucet-modal" className="btn btn-primary btn-sm font-normal gap-1">
-        <BanknotesIcon className="h-4 w-4" />
-        <span>Faucet</span>
-      </label>
+      <div className="relative">
+        <AngularBorder width={130} height={40} color="rgba(227, 6, 110, 1)" />
+        <label
+          htmlFor="faucet-modal"
+          className="flex items-center gap-2 px-4 py-2 cursor-pointer rounded-lg"
+          style={{
+            width: "130px",
+            height: "40px",
+            display: "flex",
+            alignItems: "flex-start",
+            paddingTop: "8px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <BanknotesIcon className="h-4 w-4" style={{ color: "rgba(227, 6, 110, 1)" }} />
+          <span
+            style={{
+              color: isDarkMode ? "#FFF" : "black",
+              fontFamily: "Orbitron, sans-serif",
+              fontSize: "14px",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            Faucet
+          </span>
+        </label>
+      </div>
       <input type="checkbox" id="faucet-modal" className="modal-toggle" />
       <label htmlFor="faucet-modal" className="modal cursor-pointer">
         <label className="modal-box relative">

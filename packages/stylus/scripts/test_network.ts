@@ -1,4 +1,4 @@
-import { getChain, getRpcUrlFromChain } from "./utils/";
+import { getChain, getRpcUrlFromChain, ALIASES } from "./utils/";
 import { SUPPORTED_NETWORKS } from "./utils/";
 
 function testNetworkFunctionality() {
@@ -18,14 +18,13 @@ function testNetworkFunctionality() {
   console.log("\n📝 Usage examples:");
   Object.keys(SUPPORTED_NETWORKS).forEach((network) => {
     const chain = getChain(network);
+    // Find the alias for this network (reverse lookup)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const alias = Object.entries(ALIASES).find(([_, value]) => value === network)?.[0];
+    const networkName = alias || network;
     console.log(
-      `  yarn deploy --network ${chain?.name}\t# Deploy to ${chain?.name}`,
+      `  yarn deploy --network ${networkName}\t# Deploy to ${chain?.name}`,
     );
-
-    // TODO: determine which one to use later, for now we use all original names
-    // console.log(
-    //   `  yarn deploy --network ${chain?.alias}\t\t# Deploy to ${chain?.name} (alias)`,
-    // );
   });
 }
 

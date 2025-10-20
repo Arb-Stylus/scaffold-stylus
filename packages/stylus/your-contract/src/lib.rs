@@ -64,15 +64,13 @@ sol_storage! {
 
 /// Declare that `YourContract` is a contract with the following external methods.
 #[public]
-#[implements(IOwnable<Error = Error>)]
+#[implements(IOwnable)]
 impl YourContract {
     #[constructor]
     pub fn constructor(&mut self, initial_owner: Address) -> Result<(), Error> {
         // Initialize Ownable with the initial owner using OpenZeppelin pattern
         self.ownable.constructor(initial_owner)?;
         self.greeting.set_str("Building Unstoppable Apps!!!");
-        self.premium.set(false);
-        self.total_counter.set(U256::ZERO);
         Ok(())
     }
 
@@ -155,17 +153,15 @@ impl YourContract {
 /// Implementation of the IOwnable interface
 #[public]
 impl IOwnable for YourContract {
-    type Error = Error;
-
     fn owner(&self) -> Address {
         self.ownable.owner()
     }
 
-    fn transfer_ownership(&mut self, new_owner: Address) -> Result<(), Self::Error> {
+    fn transfer_ownership(&mut self, new_owner: Address) -> Result<(), Vec<u8>> {
         Ok(self.ownable.transfer_ownership(new_owner)?)
     }
 
-    fn renounce_ownership(&mut self) -> Result<(), Self::Error> {
+    fn renounce_ownership(&mut self) -> Result<(), Vec<u8>> {
         Ok(self.ownable.renounce_ownership()?)
     }
 }

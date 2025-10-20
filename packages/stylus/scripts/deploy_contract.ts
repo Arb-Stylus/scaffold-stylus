@@ -110,6 +110,7 @@ export default async function deployStylusContract(
         address: deploymentInfo.address,
         abi: contractData.abi as Abi,
         functionName: "initialize",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         args: deployOptions.constructorArgs as any[],
       });
 

@@ -3,7 +3,7 @@ import { arbitrum, arbitrumSepolia, arbitrumNova, eduChainTestnet, eduChain, sup
 
 const arbitrumNitro = defineChain({
   id: 412346,
-  name: "Arbitrum Nitro DevNode",
+  name: "Nitro DevNode",
   network: "arbitrum-nitro",
   nativeCurrency: {
     name: "Ether",

@@ -24,11 +24,13 @@ p {
 }
 
 .btn {
-  @apply shadow-md;
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 .btn.btn-ghost {
-  @apply shadow-none;
+  box-shadow: none;
 }
 
 .border-color {
@@ -86,4 +88,339 @@ p {
   background:
     linear-gradient(270deg, #e3066e 0%, #203147 108.63%) padding-box,
     linear-gradient(90deg, var(--gradient-start) 0%, var(--gradient-end) 100%) border-box;
+}
+
+/* Figma Design Variables */
+:root {
+  --spacing-md: 8px;
+  --spacing-lg: 12px;
+  --spacing-xl: 16px;
+  --spacing-2xl: 16px;
+  --spacing-4xl: 24px;
+  --spacing-7xl: 40px;
+  --stroke-sub-20: rgba(255, 255, 255, 0.2);
+  --bg-surface-surface-40: rgba(2, 2, 2, 0.4);
+  --bg-surface-input-20: rgba(255, 255, 255, 0.04);
+  --text-sub-600: rgba(255, 255, 255, 0.6);
+  --text-soft-400: rgba(255, 255, 255, 0.4);
+  --text-strong-950: #ffffff;
+  --figma-pink: #ff50a2;
+  --figma-sky-blue: #30b4ed;
+}
+
+/* Contract Card Styles */
+.contract-card {
+  display: flex;
+  padding: var(--spacing-4xl, 24px);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-4xl, 24px);
+  align-self: stretch;
+  border-radius: var(--spacing-2xl, 16px);
+  border: 1px solid var(--stroke-sub-20, rgba(255, 255, 255, 0.2));
+  background: var(--bg-surface-surface-40, rgba(2, 2, 2, 0.4));
+  backdrop-filter: blur(25px);
+}
+
+.contract-title {
+  color: var(--figma-sky-blue);
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.contract-address {
+  color: white;
+  font-size: 0.875rem;
+}
+
+.contract-label {
+  color: white;
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+.contract-value {
+  color: var(--figma-pink);
+  font-size: 0.875rem;
+}
+
+.variable-name {
+  color: var(--figma-sky-blue);
+}
+
+[data-theme="light"] .variable-name {
+  color: rgba(24, 24, 24, 1);
+}
+
+/* Reusable Typography */
+.typography-uppercase {
+  color: var(--text-sub-600, rgba(255, 255, 255, 0.6));
+  text-align: center;
+  font-family: var(--font-orbitron), sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: -0.28px;
+  text-transform: uppercase;
+}
+
+/* Tab Container */
+.tab-container {
+  border-radius: var(--spacing-md, 8px);
+  background: var(--bg-surface-input-20, rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(25px);
+  padding: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+/* Tab Button */
+.tab-button {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: var(--spacing-md, 8px);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button.active {
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .tab-button.active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(213, 213, 213, 1) 100%);
+  box-shadow: 0 2px 4px rgba(171, 171, 171, 1);
+}
+
+.tab-button.active .tab-text {
+  color: #333;
+}
+
+.tab-button:not(.active) .tab-text {
+  color: var(--text-sub-600, rgba(255, 255, 255, 0.6));
+}
+
+/* Function Styling */
+.function-name {
+  color: var(--figma-sky-blue);
+}
+
+.param-type {
+  color: var(--text-sub-600, rgba(255, 255, 255, 0.6));
+}
+
+[data-theme="light"] .param-name {
+  color: rgba(24, 24, 24, 1);
+}
+
+/* Input Styling */
+.input-container {
+  padding: var(--spacing-lg, 12px) var(--spacing-xl, 16px);
+  align-items: center;
+  gap: 8px;
+  align-self: stretch;
+  border-radius: var(--spacing-md, 8px);
+  background: var(--bg-surface-input-20, rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(25px);
+}
+
+/* Light mode input styling */
+[data-theme="light"] .input-container {
+  background: rgba(0, 0, 0, 0.04);
+  backdrop-filter: none;
+}
+
+.input-text {
+  color: var(--text-soft-400, rgba(255, 255, 255, 0.4));
+  text-align: center;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.14px;
+}
+
+/* Light mode input text styling */
+[data-theme="light"] .input-text {
+  color: rgba(24, 24, 24, 0.4);
+}
+
+/* Input field overrides */
+.input-container .flex.border-2.border-base-300.bg-base-200.rounded-full {
+  border-radius: var(--spacing-md, 8px) !important;
+  background: var(--bg-surface-input-20, rgba(255, 255, 255, 0.04)) !important;
+  backdrop-filter: blur(25px) !important;
+  border: none !important;
+  padding: var(--spacing-lg, 12px) var(--spacing-xl, 16px) !important;
+  gap: 8px !important;
+  align-items: center !important;
+  align-self: stretch !important;
+}
+
+/* Light mode input field overrides */
+[data-theme="light"] .input-container .flex.border-2.border-base-300.bg-base-200.rounded-full {
+  background: rgba(0, 0, 0, 0.04) !important;
+  backdrop-filter: none !important;
+}
+
+.input-container .input.input-ghost {
+  background: transparent !important;
+  border: none !important;
+  color: white !important;
+  font-family: Inter, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
+  letter-spacing: -0.14px !important;
+  text-align: left !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: auto !important;
+  flex: 1 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Light mode input text color */
+[data-theme="light"] .input-container .input.input-ghost {
+  color: rgba(24, 24, 24, 0.4) !important;
+}
+
+.input-container .input.input-ghost:focus,
+.input-container .input.input-ghost::placeholder {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: var(--text-soft-400, rgba(255, 255, 255, 0.4)) !important;
+  font-family: Inter, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
+  letter-spacing: -0.14px !important;
+}
+
+/* Light mode input placeholder and focus color */
+[data-theme="light"] .input-container .input.input-ghost::placeholder {
+  color: rgba(24, 24, 24, 0.4) !important;
+}
+
+/* Input text color when typing - light mode */
+[data-theme="light"] .input-container .input.input-ghost:focus,
+[data-theme="light"] .input-container .input.input-ghost:not(:placeholder-shown) {
+  color: rgba(24, 24, 24, 1) !important;
+}
+
+/* Input text color when typing - dark mode */
+[data-theme="dark"] .input-container .input.input-ghost:focus,
+[data-theme="dark"] .input-container .input.input-ghost:not(:placeholder-shown) {
+  color: white !important;
+}
+
+/* Button Styles */
+.send-button {
+  display: flex;
+  padding: 8px var(--spacing-7xl, 40px);
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--spacing-md, 8px);
+  background: linear-gradient(180deg, #fc3592 0%, #e3066e 100%);
+  color: var(--text-strong-950, #fff);
+  text-align: center;
+  font-family: var(--font-orbitron), sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: -0.28px;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow:
+    0 2px 0 #ff9ccb,
+    0 4px 8px rgba(255, 156, 203, 0.3);
+}
+
+.send-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.send-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.read-button {
+  display: flex;
+  padding: 8px var(--spacing-7xl, 40px);
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--spacing-md, 8px);
+  background: linear-gradient(180deg, #fc3592 0%, #e3066e 100%);
+  color: var(--text-strong-950, #fff);
+  text-align: center;
+  font-family: var(--font-orbitron), sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: -0.28px;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow:
+    0 2px 0 #ff9ccb,
+    0 4px 8px rgba(255, 156, 203, 0.3);
+  margin-left: auto;
+}
+
+.read-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.read-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Typography Utilities */
+.text-inter {
+  font-family: Inter, sans-serif;
+}
+
+.text-inter-14 {
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.14px;
+}
+
+/* Contract Tab Button Styles */
+.contract-tab-button {
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-family: Inter, sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
