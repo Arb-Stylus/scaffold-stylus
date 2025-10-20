@@ -86,6 +86,9 @@ jobs:
           cd source_repo
           yarn deploy --network sepolia
 
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
       - name: Deploy to vercel
         if: success()
         id: deploy
@@ -96,8 +99,8 @@ jobs:
           RPC_URL_SEPOLIA: ${{ secrets.RPC_URL_SEPOLIA }}
         run: |
           cd source_repo/packages/nextjs
-          vercel link --yes --project $VERCEL_PROJECT_ID --token $VERCEL_TOKEN --scope $VERCEL_ORG_ID
-          yarn vercel --build-env NEXT_PUBLIC_IGNORE_BUILD_ERROR=true --build-env NEXT_PUBLIC_SEPOLIA_PROVIDER_URL=$RPC_URL_SEPOLIA --prod --token $VERCEL_TOKEN --scope $VERCEL_ORG_ID
+          vercel link --yes --project $VERCEL_PROJECT_ID --token $VERCEL_TOKEN
+          vercel --build-env NEXT_PUBLIC_IGNORE_BUILD_ERROR=true --build-env NEXT_PUBLIC_SEPOLIA_PROVIDER_URL=$RPC_URL_SEPOLIA --prod --token $VERCEL_TOKEN
 
       - name: Notify Slack on Success
         if: success()
