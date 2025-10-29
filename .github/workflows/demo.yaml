@@ -97,7 +97,7 @@ jobs:
         run: |
           cd source_repo/packages/nextjs
           vercel link --yes --project $VERCEL_PROJECT_ID --token $VERCEL_TOKEN --scope $VERCEL_ORG_ID
-          yarn vercel --build-env NEXT_PUBLIC_IGNORE_BUILD_ERROR=true --build-env NEXT_PUBLIC_SEPOLIA_PROVIDER_URL=$RPC_URL_SEPOLIA --prod --token $VERCEL_TOKEN --scope $VERCEL_ORG_ID
+          vercel --build-env NEXT_PUBLIC_IGNORE_BUILD_ERROR=true --build-env NEXT_PUBLIC_SEPOLIA_PROVIDER_URL=$RPC_URL_SEPOLIA --prod --token $VERCEL_TOKEN --scope $VERCEL_ORG_ID
 
       - name: Notify Slack on Success
         if: success()
