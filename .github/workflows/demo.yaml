@@ -86,9 +86,6 @@ jobs:
           cd source_repo
           yarn deploy --network sepolia
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
       - name: Deploy to vercel
         if: success()
         id: deploy
