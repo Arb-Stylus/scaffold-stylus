@@ -5,7 +5,7 @@ on:
     types: [closed]
     branches: [main]
     paths:
-      - "packages/nextjs/**"
+      - "packages/**"
 
 jobs:
   version-bump-stylus:
