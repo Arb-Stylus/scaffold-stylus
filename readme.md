@@ -27,6 +27,15 @@ Before you begin, you need to install the following tools:
 - [Docker](https://docs.docker.com/engine/install/)
 - [Foundry Cast](https://getfoundry.sh/)
 
+> **Note: Windows Compatibility**
+>
+> Scaffold-Stylus currently does not support Windows natively. If you're using Windows, we recommend:
+>
+> - **Use WSL (Windows Subsystem for Linux)** - Install WSL2 and run Scaffold-Stylus within the Linux environment
+> - **Switch to Linux or macOS** - For the best development experience
+>
+> For WSL setup, follow the [Microsoft WSL installation guide](https://docs.microsoft.com/en-us/windows/wsl/install).
+
 ## Quickstart
 
 To get started with Scaffold-Stylus, follow the steps below:
