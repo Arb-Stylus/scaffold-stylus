@@ -26,6 +26,16 @@ Before you begin, you need to install the following tools:
 - [Git](https://git-scm.com/downloads)
 - [Docker](https://docs.docker.com/engine/install/)
 - [Foundry Cast](https://getfoundry.sh/)
+- [Solc (Solidity compiler)](https://docs.soliditylang.org/en/latest/installing-solidity.html)
+
+> **Note: Windows Compatibility**
+>
+> Scaffold-Stylus currently does not support Windows natively. If you're using Windows, we recommend:
+>
+> - **Use WSL (Windows Subsystem for Linux)** - Install WSL2 and run Scaffold-Stylus within the Linux environment
+> - **Switch to Linux or macOS** - For the best development experience
+>
+> For WSL setup, follow the [Microsoft WSL installation guide](https://docs.microsoft.com/en-us/windows/wsl/install).
 
 ## Quickstart
 
@@ -161,7 +171,30 @@ yarn new-module <contract-name>
 
 The generated contract will be located in `packages/stylus/<contract-name>`.
 
-### Step 2: Deploy Your Contract
+### Step 2: Validate Your Contract Before Deployment
+
+Before deploying, it's recommended to validate your contract size using `cargo stylus check`:
+
+```bash
+cd packages/stylus/<contract-name>
+cargo stylus check
+```
+
+This command performs several important checks:
+
+- **Contract size validation**: Ensures your contract doesn't exceed size limitations
+- **WASM compilation**: Verifies your Rust code compiles to WebAssembly
+- **Deployment hash computation**: Calculates the deployment hash
+- **WASM data fee estimation**: Estimates the cost of deploying your contract
+
+**Contract Size Indicators:**
+
+- 🔴 **Red indicator**: Contract size exceeds limitations - **DO NOT DEPLOY**
+- 🟡 **Yellow/🟢 Green indicator**: Contract size within acceptable limits - **OK to deploy**
+
+> **Important:** When using constructors, error logs from constructor execution may not be visible. Consider using `initialize()` functions instead for better error visibility.
+
+### Step 3: Deploy Your Contract
 
 ```bash
 yarn deploy [...options]
@@ -220,6 +253,14 @@ To deploy your contracts to other networks (other than the default local Nitro d
    // ...
    targetNetworks: [chains.arbitrumSepolia],
    ```
+
+### Arbitrum Testnet Faucets (Optional)
+
+For Arbitrum testnets, you may need testnet ETH to deploy contracts. You can obtain testnet tokens from these faucets:
+
+- [Chainlink Faucet](https://faucets.chain.link/arbitrum-sepolia)
+- [QuickNode Faucet](https://faucet.quicknode.com/arbitrum/sepolia)
+- [Alchemy Faucet](https://sepoliafaucet.com/)
 
 ### Available Networks
 
