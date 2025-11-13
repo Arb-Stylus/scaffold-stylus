@@ -28,8 +28,6 @@ Before you begin, you need to install the following tools:
 - [Foundry Cast](https://getfoundry.sh/)
 - [Solc (Solidity compiler)](https://docs.soliditylang.org/en/latest/installing-solidity.html)
 
-> **Note:** When setting up from a clean environment, you'll need to install `solc` separately.
-
 > **Note: Windows Compatibility**
 >
 > Scaffold-Stylus currently does not support Windows natively. If you're using Windows, we recommend:
