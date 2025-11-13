@@ -36,7 +36,6 @@ export const FaucetButton = () => {
     try {
       setLoading(true);
       await faucetTxn({
-        account: FAUCET_ADDRESS,
         to: address,
         value: parseEther(NUM_OF_ETH),
       });
