@@ -72,7 +72,6 @@ export const Faucet = () => {
       await faucetTxn({
         to: inputAddress,
         value: parseEther(sendValue as `${number}`),
-        account: faucetAddress,
       });
       setLoading(false);
       setInputAddress(undefined);
