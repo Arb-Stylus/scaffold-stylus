@@ -1,10 +1,134 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import "tailwindcss";
+
+@source "../app";
+@source "../components";
+@source "../utils";
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+@theme {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --shadow-center: 0 0 12px -2px rgb(0 0 0 / 0.05);
+  --animate-pulse-fast: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Orbitron utility — defined as a standalone @utility (not @theme) to avoid a
+   self-referential --font-orbitron, since next/font already emits that var. */
+@utility font-orbitron {
+  font-family: var(--font-orbitron), sans-serif;
+}
+
+@plugin "daisyui" {
+  themes:
+    light,
+    dark --prefersdark;
+}
+
+@plugin "daisyui/theme" {
+  name: "light";
+
+  --color-primary: #93bbfb;
+  --color-primary-content: #212638;
+  --color-secondary: #dae8ff;
+  --color-secondary-content: #212638;
+  --color-accent: #93bbfb;
+  --color-accent-content: #212638;
+  --color-neutral: #212638;
+  --color-neutral-content: #ffffff;
+  --color-base-100: #ffffff;
+  --color-base-200: #f4f8ff;
+  --color-base-300: #dae8ff;
+  --color-base-content: #212638;
+  --color-info: #93bbfb;
+  --color-success: #34eeb6;
+  --color-warning: #ffcf72;
+  --color-error: #ff8863;
+
+  /* ported from --rounded-btn: 9999rem (daisyui v4) -> v5 radius family */
+  --radius-field: 9999rem;
+  --radius-box: 1rem;
+
+  /* ported from .tooltip { --tooltip-tail: 6px } */
+  --tt-tailw: 6px;
+}
+
+@plugin "daisyui/theme" {
+  name: "dark";
+
+  --color-primary: #212638;
+  --color-primary-content: #f9fbff;
+  --color-secondary: #323f61;
+  --color-secondary-content: #f9fbff;
+  --color-accent: #4969a6;
+  --color-accent-content: #f9fbff;
+  --color-neutral: #f9fbff;
+  --color-neutral-content: #385183;
+  --color-base-100: #000000;
+  --color-base-200: #2a3655;
+  --color-base-300: #212638;
+  --color-base-content: #f9fbff;
+  --color-info: #385183;
+  --color-success: #34eeb6;
+  --color-warning: #ffcf72;
+  --color-error: #ff8863;
+
+  /* ported from --rounded-btn: 9999rem (daisyui v4) -> v5 radius family */
+  --radius-field: 9999rem;
+  --radius-box: 1rem;
+
+  /* ported from .tooltip { --tooltip-tail: 6px; --tooltip-color: oklch(var(--p)) } */
+  --tt-tailw: 6px;
+  --tt-bg: var(--color-primary);
+}
+
+/* Per-theme custom variables ported verbatim from tailwind.config.js daisyui themes.
+   Defined with explicit [data-theme] selectors (not inside the daisyui theme blocks,
+   which only accept daisyui's own tokens). */
+[data-theme="light"] {
+  --surface: rgba(0, 0, 0, 0.04);
+  --bg-border: #ffffff;
+  --round-color: #000;
+  --gradient-start: #3283eb;
+  --gradient-end: #e3066e;
+  --border-color: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="dark"] {
+  --surface: rgba(255, 255, 255, 0.04);
+  --bg-border: #000000;
+  --round-color: #e3066e;
+  --gradient-start: #3283eb;
+  --gradient-end: #e3066e;
+  --border-color: rgba(255, 255, 255, 0.2);
+}
+
+/*
+  Tailwind CSS v4 changed the default border color to `currentColor`.
+  Restore the v3 default (gray-200) so existing borders look identical.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+}
 
 :root,
 [data-theme] {
-  background: oklch(var(--b1));
+  background: var(--color-base-100);
+}
+
+/* ported from .link / .link:hover (defined per-theme in tailwind.config.js;
+   identical across light & dark, so defined once globally) */
+.link {
+  text-underline-offset: 2px;
+}
+
+.link:hover {
+  opacity: 80%;
 }
 
 body {

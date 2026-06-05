@@ -30,7 +30,7 @@
     "@uniswap/v2-sdk": "^4.6.1",
     "blo": "^1.2.0",
     "burner-connector": "0.0.20",
-    "daisyui": "4.5.0",
+    "daisyui": "^5.5.19",
     "kubo-rpc-client": "^5.0.2",
     "next": "^15.5.16",
     "next-nprogress-bar": "^2.4.7",
@@ -45,12 +45,11 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "latest",
+    "@tailwindcss/postcss": "^4.2.4",
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "@types/node": "^18.19.50",
     "@types/react": "^19.2.14",
     "abitype": "1.0.6",
-    "autoprefixer": "^10.4.12",
     "bgipfs": "^0.0.12",
     "eslint": "^9.39.0",
     "eslint-config-next": "^15.2.3",
@@ -58,7 +57,7 @@
     "eslint-plugin-prettier": "^5.5.5",
     "postcss": "^8.5.10",
     "prettier": "^3.8.3",
-    "tailwindcss": "^3.3.3",
+    "tailwindcss": "^4.2.4",
     "type-fest": "^4.26.1",
     "typescript": "^5.8.2",
     "vercel": "^39.1.3"
