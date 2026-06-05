@@ -6233,7 +6233,7 @@ __metadata:
     type-fest: ^4.26.1
     typescript: ^5.8.2
     usehooks-ts: ^3.1.1
-    vercel: ~52.0.0
+    vercel: ~52.2.1
     viem: 2.39.0
     wagmi: 2.19.5
     zustand: ^5.0.12
@@ -7614,12 +7614,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vercel/python@npm:6.36.0":
-  version: 6.36.0
-  resolution: "@vercel/python@npm:6.36.0"
+"@vercel/python@npm:6.36.1":
+  version: 6.36.1
+  resolution: "@vercel/python@npm:6.36.1"
   dependencies:
     "@vercel/python-analysis": 0.11.0
-  checksum: 351bd365949e633aed7dd1d501b4192e39964e21a8d32387126327d07872ac177bf67e3c2da8092ae75a5d87c152e5207400fbc06ae363eaa43cd5d2bfd9d125
+  checksum: ebd5e7e81c6af57882f8272ae2c1e4fd47824feee9426f3b7118dfe35120f7a67cbd64f4a6a1013ef4edd1d16e7d571e8b3b77fd934c4234208184bd87c2c09c
   languageName: node
   linkType: hard
 
@@ -19581,9 +19581,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vercel@npm:~52.0.0":
-  version: 52.0.0
-  resolution: "vercel@npm:52.0.0"
+"vercel@npm:~52.2.1":
+  version: 52.2.1
+  resolution: "vercel@npm:52.2.1"
   dependencies:
     "@vercel/backends": 0.2.0
     "@vercel/blob": 2.3.0
@@ -19602,7 +19602,7 @@ __metadata:
     "@vercel/next": 4.16.8
     "@vercel/node": 5.7.13
     "@vercel/prepare-flags-definitions": 0.2.1
-    "@vercel/python": 6.36.0
+    "@vercel/python": 6.36.1
     "@vercel/redwood": 2.4.12
     "@vercel/remix-builder": 5.7.2
     "@vercel/ruby": 2.3.2
@@ -19619,7 +19619,7 @@ __metadata:
   bin:
     vc: dist/vc.js
     vercel: dist/vc.js
-  checksum: e04c4125504e2a179d306e2538ac10b4a1b62bd420ab7a4ec8c74a83907703430d3e4ffc4caf16c8785d0c52401d8ff3d782e20e6a1580e3bb225fce31f62205
+  checksum: e99ed20d4ef85898943376c5f9e29a4d0f3c5f0f96501e5b1d0ae5ad168eda86b735eb5ac1cc17cf2e6a2a493ee576016de1bb78eb1b18fa60cb315c8c146040
   languageName: node
   linkType: hard
 
