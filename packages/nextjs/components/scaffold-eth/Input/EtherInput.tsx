@@ -66,6 +66,7 @@ export const EtherInput = ({
       return transitoryDisplayValue;
     }
     // Clear any transitory display values that might be set
+    // eslint-disable-next-line react-hooks/set-state-in-render
     setTransitoryDisplayValue(undefined);
     return newDisplayValue;
   }, [nativeCurrencyPrice, transitoryDisplayValue, displayUsdMode, value]);
