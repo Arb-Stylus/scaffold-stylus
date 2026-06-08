@@ -11,6 +11,13 @@ export type ScaffoldConfig = {
   walletConnectProjectId: string;
   onlyLocalBurnerWallet: boolean;
   walletAutoConnect: boolean;
+  /**
+   * Multiplier applied to maxFeePerGas for contract writes.
+   * Since maxFeePerGas is a CEILING (actual fee = baseFee + priorityFee capped at this),
+   * values >1 protect against block-to-block base fee spikes without increasing real cost.
+   * Set to 1 or omit to disable.
+   */
+  gasFeeMultiplier?: number;
 };
 
 export const DEFAULT_ALCHEMY_API_KEY = "oKxs-03sij-U_N0iOlrSsZFr29-IqbuF";
@@ -51,6 +58,9 @@ const scaffoldConfig = {
    * 2. If user is not connected to any wallet:  On reload, connect to burner wallet if burnerWallet.enabled is true && burnerWallet.onlyLocal is false
    */
   walletAutoConnect: true,
+
+  // Gas fee multiplier for contract writes (ceiling, not actual cost — safe to be generous)
+  gasFeeMultiplier: 2,
 } as const satisfies ScaffoldConfig;
 
 export default scaffoldConfig;
