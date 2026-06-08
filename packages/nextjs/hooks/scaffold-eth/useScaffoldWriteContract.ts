@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { MutateOptions } from "@tanstack/react-query";
 import { Abi, ExtractAbiFunctionNames } from "abitype";
 import { Config, UseWriteContractParameters, useAccount, useConfig, useWriteContract } from "wagmi";
-import { WriteContractErrorType, WriteContractReturnType } from "wagmi/actions";
+import { estimateFeesPerGas, WriteContractErrorType, WriteContractReturnType } from "wagmi/actions";
 import { WriteContractVariables } from "wagmi/query";
 import { useSelectedNetwork } from "~~/hooks/scaffold-eth";
 import { useDeployedContractInfo, useTransactor } from "~~/hooks/scaffold-eth";
 import { notification } from "~~/utils/scaffold-eth";
 import { AllowedChainIds } from "~~/utils/scaffold-stylus";
+import scaffoldConfig from "~~/scaffold.config";
+import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 import {
   ContractAbi,
   ContractName,
@@ -33,6 +35,30 @@ type ScaffoldWriteContractReturnType<TContractName extends ContractName> = Omit<
     options?: Omit<ScaffoldWriteContractOptions, "onBlockConfirmation" | "blockConfirmations">,
   ) => void;
 };
+
+/**
+ * Optionally bump maxFeePerGas on the write args to protect against base fee spikes.
+ * Since maxFeePerGas is a ceiling (not the actual fee), a generous multiplier is safe.
+ */
+async function applyGasFeeMultiplier(
+  args: WriteContractVariables<Abi, string, any[], Config, number>,
+  chainId: number,
+): Promise<WriteContractVariables<Abi, string, any[], Config, number>> {
+  const multiplier = scaffoldConfig.gasFeeMultiplier;
+  if (!multiplier || multiplier <= 1) return args;
+  try {
+    const fees = await estimateFeesPerGas(wagmiConfig, { chainId: chainId as any });
+    const scaledMultiplier = BigInt(Math.round(multiplier * 100));
+    return {
+      ...args,
+      maxFeePerGas: (fees.maxFeePerGas * scaledMultiplier) / 100n,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+    } as WriteContractVariables<Abi, string, any[], Config, number>;
+  } catch (e) {
+    console.warn("⚡️ ~ useScaffoldWriteContract ~ estimateFeesPerGas failed:", e);
+    return args;
+  }
+}
 
 export function useScaffoldWriteContract<TContractName extends ContractName>(
   config: UseScaffoldWriteConfig<TContractName>,
@@ -110,11 +136,13 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
       setIsMining(true);
       const { blockConfirmations, onBlockConfirmation, ...mutateOptions } = options || {};
 
-      const writeContractObject = {
+      let writeContractObject = {
         abi: deployedContractData.abi as Abi,
         address: deployedContractData.address,
         ...variables,
       } as WriteContractVariables<Abi, string, any[], Config, number>;
+
+      writeContractObject = await applyGasFeeMultiplier(writeContractObject, selectedNetwork.id as AllowedChainIds);
 
       if (!finalConfig?.disableSimulate) {
         await simulateContractWriteAndNotifyError({
@@ -167,21 +195,24 @@ export function useScaffoldWriteContract<TContractName extends ContractName>(
       return;
     }
 
-    wagmiContractWrite.writeContract(
-      {
-        abi: deployedContractData.abi as Abi,
-        address: deployedContractData.address,
-        ...variables,
-      } as WriteContractVariables<Abi, string, any[], Config, number>,
-      options as
-        | MutateOptions<
-            WriteContractReturnType,
-            WriteContractErrorType,
-            WriteContractVariables<Abi, string, any[], Config, number>,
-            unknown
-          >
-        | undefined,
-    );
+    const writeContractObject = {
+      abi: deployedContractData.abi as Abi,
+      address: deployedContractData.address,
+      ...variables,
+    } as WriteContractVariables<Abi, string, any[], Config, number>;
+    applyGasFeeMultiplier(writeContractObject, selectedNetwork.id as AllowedChainIds).then(buffered => {
+      wagmiContractWrite.writeContract(
+        buffered,
+        options as
+          | MutateOptions<
+              WriteContractReturnType,
+              WriteContractErrorType,
+              WriteContractVariables<Abi, string, any[], Config, number>,
+              unknown
+            >
+          | undefined,
+      );
+    });
   };
 
   return {
