@@ -5,6 +5,38 @@ import {
   isContractHasConstructor,
 } from "./contract";
 import { getRpcUrlFromChain } from "./network";
+import { createPublicClient, http, formatUnits } from "viem";
+
+const DEFAULT_GAS_FEE_MULTIPLIER = 3;
+const MIN_FEE_GWEI = 0.1;
+
+function getGasFeeMultiplier(): number {
+  const envVal = process.env["DEPLOY_GAS_FEE_MULTIPLIER"];
+  if (envVal) {
+    const parsed = parseFloat(envVal);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return DEFAULT_GAS_FEE_MULTIPLIER;
+}
+
+async function getBufferedMaxFeeGwei(rpcUrl: string): Promise<number> {
+  try {
+    const publicClient = createPublicClient({
+      transport: http(rpcUrl),
+    });
+    const block = await publicClient.getBlock({ blockTag: "latest" });
+    if (block.baseFeePerGas === null) {
+      return MIN_FEE_GWEI;
+    }
+    const baseFeeGwei = Number(formatUnits(block.baseFeePerGas, 9));
+    const buffered = baseFeeGwei * getGasFeeMultiplier();
+    return Math.max(buffered, MIN_FEE_GWEI);
+  } catch {
+    return MIN_FEE_GWEI;
+  }
+}
 
 export async function buildDeployCommand(
   config: DeploymentConfig,
@@ -18,6 +50,12 @@ export async function buildDeployCommand(
 
   if (deployOptions.maxFee) {
     baseCommand += ` --max-fee-per-gas-gwei=${deployOptions.maxFee}`;
+  } else {
+    // maxFeePerGas is a CEILING (actual charge = base fee), so over-provisioning is safe and free.
+    // Cargo stylus without this flag uses a tight estimate that the base fee can creep past.
+    const rpcUrl = getRpcUrlFromChain(config.chain);
+    const maxFeeGwei = await getBufferedMaxFeeGwei(rpcUrl);
+    baseCommand += ` --max-fee-per-gas-gwei=${maxFeeGwei}`;
   }
 
   if (!deployOptions.verify) {
