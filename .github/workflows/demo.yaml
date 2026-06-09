@@ -46,7 +46,7 @@ jobs:
       - name: Install cargo-stylus
         run: |
           cd source_repo
-          cargo install --force cargo-stylus
+          cargo install --force cargo-stylus@0.10.2
 
       - name: Install foundry cast
         uses: foundry-rs/foundry-toolchain@v1
