@@ -105,9 +105,8 @@ export const Header = () => {
       }}
     >
       <div className="navbar-start w-auto lg:w-1/2">
-        <div className="lg:hidden dropdown" ref={burgerMenuRef}>
+        <div className={`lg:hidden dropdown ${isDrawerOpen ? "dropdown-open" : ""}`} ref={burgerMenuRef}>
           <label
-            tabIndex={0}
             className={`ml-1 btn btn-ghost ${isDrawerOpen ? "hover:bg-secondary" : "hover:bg-transparent"}`}
             onClick={() => {
               setIsDrawerOpen(prevIsOpenState => !prevIsOpenState);
