@@ -40,21 +40,22 @@ export const AddressInfoDropdown = ({ address, ensAvatar, displayName, onSwitchA
   const { copyToClipboard: copyAddressToClipboard, isCopiedToClipboard: isAddressCopiedToClipboard } =
     useCopyToClipboard();
   const [selectingNetwork, setSelectingNetwork] = useState(false);
-  const dropdownRef = useRef<HTMLDetailsElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const closeDropdown = () => {
     setSelectingNetwork(false);
-    dropdownRef.current?.removeAttribute("open");
+    setIsOpen(false);
   };
 
   useOutsideClick(dropdownRef, closeDropdown);
 
   return (
     <>
-      <details ref={dropdownRef} className="dropdown dropdown-end leading-3">
-        <summary
-          tabIndex={0}
+      <div ref={dropdownRef} className={`dropdown dropdown-end leading-3 ${isOpen ? "dropdown-open" : ""}`}>
+        <label
           className="dropdown-toggle gap-0 !h-auto"
+          onClick={() => setIsOpen(prev => !prev)}
           style={{
             position: "relative",
             width: "220px",
@@ -126,7 +127,7 @@ export const AddressInfoDropdown = ({ address, ensAvatar, displayName, onSwitchA
               }}
             />
           </div>
-        </summary>
+        </label>
         <ul
           tabIndex={0}
           className="dropdown-content menu z-[2] p-2 mt-4 gap-1"
@@ -229,7 +230,7 @@ export const AddressInfoDropdown = ({ address, ensAvatar, displayName, onSwitchA
             </button>
           </li>
         </ul>
-      </details>
+      </div>
     </>
   );
 };
