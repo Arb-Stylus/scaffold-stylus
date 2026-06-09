@@ -68,7 +68,7 @@ jobs:
             cargo-stylus --version
           else
             echo "Installing cargo-stylus..."
-            cargo install --force cargo-stylus@0.10.2
+            cargo install --force --locked cargo-stylus@0.10.2
           fi
 
       - name: Cache Rust dependencies
