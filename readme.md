@@ -67,12 +67,12 @@ Check the [Rust installation guide](https://www.rust-lang.org/tools/install) for
 Then install the Stylus CLI tools:
 
 ```bash
-cargo install --force cargo-stylus cargo-stylus-check
+cargo install --force --locked cargo-stylus@0.6.3
 ```
 
 **Prerequisite:**
 
-- `cargo-stylus` version `^0.6.1`
+- `cargo-stylus` version `0.6.3`
 - `rustc` version match with `packages/stylus/your-contract/rust-toolchain.toml`
 
 Set default `toolchain` match `rust-toolchain.toml` and add the `wasm32-unknown-unknown` build target to your Rust compiler:
