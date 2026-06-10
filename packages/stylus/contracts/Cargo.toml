@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["your-contract"]
+members = ["*"]
+exclude = ["target"]
 
 [profile.release]
 codegen-units = 1

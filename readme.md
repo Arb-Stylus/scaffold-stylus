@@ -73,7 +73,7 @@ cargo install --force --locked cargo-stylus@0.10.2
 **Prerequisite:**
 
 - `cargo-stylus` version `0.10.2`
-- `rustc` version match with `packages/stylus/rust-toolchain.toml`
+- `rustc` version match with `packages/stylus/contracts/rust-toolchain.toml`
 
 Set default `toolchain` match `rust-toolchain.toml` and add the `wasm32-unknown-unknown` build target to your Rust compiler:
 
@@ -133,7 +133,7 @@ In your second terminal:
 yarn deploy
 ```
 
-This command deploys a test smart contract to the local network. The contract is located in `packages/stylus/your-contract/src` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/stylus/scripts` to deploy the contract to the network. You can also customize the deploy script .
+This command deploys a test smart contract to the local network. The contract is located in `packages/stylus/contracts/your-contract/src` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/stylus/scripts` to deploy the contract to the network. You can also customize the deploy script .
 
 ### 6. Start your NextJS app
 
@@ -153,7 +153,7 @@ yarn stylus:test
 
 ## Development Workflow
 
-- Edit your smart contract `lib.rs` in `packages/stylus/your-contract/src`
+- Edit your smart contract `lib.rs` in `packages/stylus/contracts/your-contract/src`
 - Edit your frontend in `packages/nextjs/app`
 - Edit your deployment scripts in `packages/stylus/scripts`
 
@@ -169,16 +169,16 @@ Use the following command to create a new contract and customize it as needed:
 yarn new-module <contract-name>
 ```
 
-The generated contract will be located in `packages/stylus/<contract-name>`.
+The generated contract will be located in `packages/stylus/contracts/<contract-name>`.
 
-**Workspace structure:** `packages/stylus` is a Cargo workspace. `yarn new-module <name>` (via `scripts/new_module.sh`) scaffolds the new contract and registers it as a workspace member in the root `Cargo.toml` — no manual wiring needed.
+**Workspace structure:** `packages/stylus/contracts` is a Cargo workspace with `members = ["*"]`. `yarn new-module <name>` (via `scripts/new_module.sh`) scaffolds the new contract under `contracts/` — the glob auto-discovers it, no manual wiring needed.
 
 ### Step 2: Validate Your Contract Before Deployment
 
 Before deploying, it's recommended to validate your contract size using `cargo stylus check`:
 
 ```bash
-cd packages/stylus/<contract-name>
+cd packages/stylus/contracts/<contract-name>
 cargo stylus check
 ```
 

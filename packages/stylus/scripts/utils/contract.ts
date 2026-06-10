@@ -75,7 +75,7 @@ export function getExportConfig(
   }
 
   return {
-    contractFolder,
+    contractFolder: path.basename(contractFolder || ""),
     contractName,
     deploymentDir,
     contractAddress: deploymentData.address as Address,

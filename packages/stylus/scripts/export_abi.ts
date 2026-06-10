@@ -16,7 +16,9 @@ export async function exportStylusAbi(
 ) {
   console.log("📄 Starting Stylus ABI export...");
 
-  const config = getExportConfig(contractFolder, contractName, chainId);
+  // Resolve the actual filesystem path (contracts live under contracts/)
+  const fsPath = path.join("contracts", contractFolder);
+  const config = getExportConfig(fsPath, contractName, chainId);
 
   if (!config.contractAddress) {
     console.error(
@@ -36,8 +38,9 @@ export async function exportStylusAbi(
     ensureDeploymentDirectory(config.deploymentDir);
 
     // Export ABI
-    const exportCommand = `cargo stylus export-abi --output='../${config.deploymentDir}/${config.contractFolder}' --json`;
-    await executeCommand(exportCommand, contractFolder, "Exporting ABI");
+    // cwd is now contracts/<contract>/, so ../../ reaches packages/stylus/
+    const exportCommand = `cargo stylus export-abi --output='../../${config.deploymentDir}/${config.contractFolder}' --json`;
+    await executeCommand(exportCommand, fsPath, "Exporting ABI");
 
     console.log(
       `📄 ABI file location: ${config.deploymentDir}/${config.contractFolder}`,
@@ -73,12 +76,13 @@ export async function exportStylusAbi(
 
 if (require.main === module) {
   // Get contract folder from command line args, default to 'your-contract'
-  const contractFolder = process.argv[2] || "your-contract";
+  const rawContract = process.argv[2] || "your-contract";
+  const contractFolder = path.join("contracts", rawContract);
   if (!fs.existsSync(contractFolder)) {
     console.error(`❌ Contract folder does not exist: ${contractFolder}`);
     process.exit(1);
   }
-  exportStylusAbi(contractFolder, contractFolder).catch(
+  exportStylusAbi(rawContract, rawContract).catch(
     (error) => {
       console.error("Fatal error:", error);
       process.exit(1);

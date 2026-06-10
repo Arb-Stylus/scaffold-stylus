@@ -118,26 +118,22 @@ async function hasCargoToml(dirPath: string): Promise<boolean> {
  * Find all Cargo projects in the stylus directory
  */
 async function findCargoProjects(): Promise<string[]> {
-  const stylusDir = path.resolve(__dirname, "..");
+  const contractsDir = path.resolve(__dirname, "..", "contracts");
   const cargoProjects: string[] = [];
 
   try {
-    const entries = await fs.readdir(stylusDir, { withFileTypes: true });
+    const entries = await fs.readdir(contractsDir, { withFileTypes: true });
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const dirName = entry.name;
 
         // Skip excluded directories
-        if (
-          dirName === "scripts" ||
-          dirName === "deployments" ||
-          dirName === "node_modules"
-        ) {
+        if (dirName === "target") {
           continue;
         }
 
-        const dirPath = path.join(stylusDir, dirName);
+        const dirPath = path.join(contractsDir, dirName);
 
         if (await hasCargoToml(dirPath)) {
           cargoProjects.push(dirPath);

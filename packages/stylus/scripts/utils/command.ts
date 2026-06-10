@@ -1,3 +1,4 @@
+import * as path from "path";
 import { spawn } from "child_process";
 import { DeploymentConfig, DeployOptions } from "./type";
 import {
@@ -64,7 +65,7 @@ export async function buildDeployCommand(
     if (
       deployOptions.constructorArgs &&
       deployOptions.constructorArgs.length > 0 &&
-      isContractHasConstructor(config.contractFolder)
+      isContractHasConstructor(path.join("contracts", config.contractFolder))
     ) {
       throw new Error(
         "Verification is not currently supported with constructors. Please implement and use initialize() function to initialize your contracts: Refer to readme.md for tutorial",

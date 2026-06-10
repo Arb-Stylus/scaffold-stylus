@@ -12,7 +12,7 @@ MODULE_NAME_UNDERSCORE=$(echo "$MODULE_NAME" | tr '-' '_')
 MODULE_NAME_PASCAL=$(echo "$MODULE_NAME_UNDERSCORE" | perl -pe 's/(^|_)(.)/\u$2/g')
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../contracts" && pwd)"
 MODULE_DIR="$WORKSPACE_ROOT/$MODULE_NAME"
 
 if [ -d "$MODULE_DIR" ]; then
@@ -135,14 +135,10 @@ cat > "$MODULE_DIR/Stylus.toml" << STYLUSEOF
 name = "$MODULE_NAME"
 STYLUSEOF
 
-# Add member to workspace members array in root Cargo.toml
-perl -i -pe 's/^members = \[(.*)\]/members = [$1, "'"$MODULE_NAME"'"]/' "$WORKSPACE_ROOT/Cargo.toml"
-
-# Regenerate root lockfile
-cd "$WORKSPACE_ROOT" && cargo generate-lockfile
-
 echo "New workspace member '$MODULE_NAME' created successfully"
 echo ""
 echo "Next steps:"
 echo "  1. Write your contract logic in $MODULE_NAME/src/lib.rs"
 echo "  2. Deploy: yarn deploy --network sepolia --contract $MODULE_NAME"
+echo ""
+echo "Note: members=['*'] in contracts/Cargo.toml auto-discovers new modules — no manual wiring needed."

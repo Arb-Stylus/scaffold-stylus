@@ -24,15 +24,15 @@ jobs:
         run: |
           cd source_repo
           # Extract channel/version
-          CHANNEL=$(grep -o 'channel = "[^"]*"' packages/stylus/rust-toolchain.toml | cut -d'"' -f2)
+          CHANNEL=$(grep -o 'channel = "[^"]*"' packages/stylus/contracts/rust-toolchain.toml | cut -d'"' -f2)
           echo "toolchain=$CHANNEL" >> $GITHUB_OUTPUT
 
           # Extract components (only from the components section, without quotes)
-          COMPONENTS=$(awk '/components = \[/,/\]/' packages/stylus/rust-toolchain.toml | grep -o '"[^"]*"' | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
+          COMPONENTS=$(awk '/components = \[/,/\]/' packages/stylus/contracts/rust-toolchain.toml | grep -o '"[^"]*"' | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
           echo "components=$COMPONENTS" >> $GITHUB_OUTPUT
 
           # Extract targets (only from the targets section, without quotes)
-          TARGETS=$(awk '/targets = \[/,/\]/' packages/stylus/rust-toolchain.toml | grep -o '"[^"]*"' | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
+          TARGETS=$(awk '/targets = \[/,/\]/' packages/stylus/contracts/rust-toolchain.toml | grep -o '"[^"]*"' | sed 's/"//g' | tr '\n' ',' | sed 's/,$//')
           echo "targets=$TARGETS" >> $GITHUB_OUTPUT
 
       - name: Install Rust
