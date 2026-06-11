@@ -1,0 +1,2 @@
+[workspace]
+networks = { arb1 = { endpoint = "https://arb1.arbitrum.io/rpc" }, sepolia = { endpoint = "https://sepolia-rollup.arbitrum.io/rpc" } }

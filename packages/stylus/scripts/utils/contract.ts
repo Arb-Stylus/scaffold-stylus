@@ -43,7 +43,7 @@ export function getContractNameFromCargoToml(contractFolder: string): string {
 }
 
 export function isContractHasConstructor(contractFolder: string): boolean {
-  const contractPath = path.resolve(contractFolder, "src/lib.rs");
+  const contractPath = path.resolve("contracts", contractFolder, "src/lib.rs");
   if (!fs.existsSync(contractPath)) {
     throw new Error(`lib.rs not found in contract folder: ${contractPath}`);
   }
@@ -75,7 +75,7 @@ export function getExportConfig(
   }
 
   return {
-    contractFolder,
+    contractFolder: path.basename(contractFolder || ""),
     contractName,
     deploymentDir,
     contractAddress: deploymentData.address as Address,

@@ -11,7 +11,7 @@
     "deploy": "ts-node scripts/deploy_wrapper.ts",
     "info:networks": "ts-node scripts/test_network.ts",
     "export-abi": "ts-node scripts/export_abi.ts",
-    "clean-contracts": "git clean -xdf -e .env -e your-contract/ -e node_modules/",
+    "clean-contracts": "git clean -xdf -e .env -e contracts/ -e node_modules/",
     "test": "ts-node scripts/test.ts",
     "lint": "eslint scripts --ext .ts",
     "lint:fix": "eslint scripts --ext .ts --fix",

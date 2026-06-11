@@ -15,6 +15,7 @@ import { DeployOptions } from "./utils/type";
 import { buildDeployCommand } from "./utils/command";
 import { Abi, createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import * as path from "path";
 import { arbitrumNitro } from "../../nextjs/utils/scaffold-stylus/supportedChains";
 
 /**
@@ -39,7 +40,7 @@ export default async function deployStylusContract(
     const deployCommand = await buildDeployCommand(config, deployOptions);
     const deployOutput = await executeCommand(
       deployCommand,
-      deployOptions.contract!,
+      path.join("contracts", deployOptions.contract!),
       "Deploying contract with cargo stylus",
     );
 
@@ -127,7 +128,7 @@ export default async function deployStylusContract(
       try {
         const output = await executeCommand(
           `cargo stylus verify --endpoint=${getRpcUrlFromChain(config.chain)} --deployment-tx=${deploymentInfo.txHash}`,
-          deployOptions.contract!,
+          path.join("contracts", deployOptions.contract!),
           "Verifying contract with cargo stylus",
         );
         console.log(output);

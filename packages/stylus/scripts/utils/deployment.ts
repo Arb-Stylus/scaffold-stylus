@@ -33,7 +33,7 @@ export function getDeploymentConfig(
     try {
       contractName =
         deployOptions.name ||
-        getContractNameFromCargoToml(deployOptions.contract);
+        getContractNameFromCargoToml(path.join("contracts", deployOptions.contract!));
     } catch (e) {
       throw new Error(`❌ Could not read contract name from Cargo.toml: ${e}`);
     }
