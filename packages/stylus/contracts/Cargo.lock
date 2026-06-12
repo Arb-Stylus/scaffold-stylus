@@ -5613,6 +5613,7 @@ dependencies = [
  "eyre",
  "hex",
  "openzeppelin-stylus",
+ "parity-scale-codec",
  "stylus-sdk",
  "tokio",
 ]
