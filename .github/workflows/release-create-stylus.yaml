@@ -90,7 +90,7 @@ jobs:
             source_repo/ destination_repo/templates/base
           cd destination_repo
           git add .
-          git commit -m "chore: sync files from scaffold-stark-2 [skip ci]"
+          git commit -m "chore: sync files from scaffold-stylus [skip ci]"
 
       - name: Format .gitignore files
         run: |
