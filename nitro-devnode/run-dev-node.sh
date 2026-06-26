@@ -70,6 +70,18 @@ cast send 0x00000000000000000000000000000000000000FF "becomeChainOwner()" \
   --private-key $PRIVATE_KEY \
   --rpc-url $RPC
 
+# Upgrade ArbOS to version 60 to enable multi-fragment Stylus activation.
+# Nitro v3.10.0+ / ArbOS 60 introduced activation of contracts whose compressed
+# wasm exceeds the 24KB single-fragment limit (e.g. full ERC-20/ERC-721 templates).
+# The dev node boots at ArbOS 59 (ArbSys.arbOSVersion() reports 114); without this
+# upgrade, activateProgram reverts ("execution reverted") for multi-fragment (>24KB)
+# contracts even on the v3.11.0 image. The argument is the ArbOS version (60), NOT the
+# ArbSys-reported number (115). Timestamp 0 applies the upgrade on the next mined block
+# (the setL1PricePerUnit call below), after which ArbSys.arbOSVersion() reports 115.
+echo "Upgrading ArbOS to version 60 for multi-fragment (>24KB) Stylus support..."
+cast send -r $RPC --private-key $PRIVATE_KEY 0x0000000000000000000000000000000000000070 \
+  'scheduleArbOSUpgrade(uint64,uint64)' 60 0
+
 # Set the L1 data fee to 0 so it doesn't impact the L2 Gas limit.
 # This makes the gas estimates closer to Ethereum and allows the deployment of the CREATE2 factory
 cast send -r $RPC --private-key $PRIVATE_KEY 0x0000000000000000000000000000000000000070 'setL1PricePerUnit(uint256)' 0x0
