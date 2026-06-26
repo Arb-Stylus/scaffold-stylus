@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NITRO_NODE_VERSION="v3.5.5-90ee45c"
+NITRO_NODE_VERSION="v3.11.0-a618155"
 TARGET_IMAGE="offchainlabs/nitro-node:${NITRO_NODE_VERSION}"
 
 RPC=http://127.0.0.1:8547
