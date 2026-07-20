@@ -14,3 +14,9 @@ node_modules
 !.vscode/settings.json
 .idea
 .vercel
+
+# Agent tooling and artifacts
+.claude/*
+!.claude/workflows/
+!.claude/skills/
+.worktrees/
