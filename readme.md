@@ -67,19 +67,19 @@ Check the [Rust installation guide](https://www.rust-lang.org/tools/install) for
 Then install the Stylus CLI tools:
 
 ```bash
-cargo install --force --locked cargo-stylus@0.10.2
+cargo install --force --locked cargo-stylus@0.10.8
 ```
 
 **Prerequisite:**
 
-- `cargo-stylus` version `0.10.2`
+- `cargo-stylus` version `0.10.8`
 - `rustc` version match with `packages/stylus/contracts/rust-toolchain.toml`
 
 Set default `toolchain` match `rust-toolchain.toml` and add the `wasm32-unknown-unknown` build target to your Rust compiler:
 
 ```bash
-rustup default 1.89
-rustup target add wasm32-unknown-unknown --toolchain 1.89
+rustup default 1.91.0
+rustup target add wasm32-unknown-unknown --toolchain 1.91.0
 ```
 
 You should now have it available as a Cargo subcommand:
