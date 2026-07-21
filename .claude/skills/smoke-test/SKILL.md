@@ -473,6 +473,89 @@ dir. On exit 1/2 it leaves Chrome running (same "preserve failure state"
 policy as Step 8) and records its PID/debug port/profile dir in the state
 file so `teardown.sh`'s escape hatch can find and clean it up later.
 
+### Dev-overlay / console advisory (ADVISORY ONLY — never changes the verdict)
+
+No assertion above looks at the Next.js dev overlay or the browser
+console, so a run can pass every assertion while the dev overlay is
+quietly reporting a problem — this was discovered when a smoke-test run
+that passed cleanly still showed a red error badge in both of Step 7's
+screenshots. This sub-check closes that gap, but deliberately does **not**
+gate the run: some of what it finds comes from third-party packages or
+services this repo doesn't control, and a gate nobody can satisfy is a
+gate people learn to bypass. It reports prominently instead — never
+silently — and has its own tri-state that is independent of Step 7's
+main PASS/FAIL:
+
+- Right after the CDP session attaches (before Step 7's first
+  navigation), the script enables the `Log` and `Runtime` CDP domains and
+  registers persistent listeners on `Log.entryAdded`,
+  `Runtime.consoleAPICalled`, and `Runtime.exceptionThrown` — capturing
+  every console/runtime error or warning for the whole session, not just
+  a snapshot at the end.
+- After the block-explorer pagination check, it also does a best-effort
+  DOM read of the dev overlay itself (`document.querySelector('nextjs-portal')`'s
+  shadow root), reporting whether it's present and which heading it shows
+  (`Console Error` / `Build Error` / `Unhandled Runtime Error`). This is
+  corroborating context only — the overlay's internal markup is
+  undocumented and changes across Next.js versions, so matching below
+  relies on the console/runtime capture (stable browser APIs), not on
+  parsing this structure.
+- Each collected issue is reduced to a short, stable **signature** (first
+  line only, hex addresses normalized away) and checked against a
+  **known-issues baseline** — `KNOWN_OVERLAY_ISSUES` near the top of
+  `browser-e2e.mjs`. Each baseline entry has a distinguishing substring to
+  match on, the date it was accepted, and a one-line reason. Matching on
+  a short substring (not a full stack trace) is deliberate: line numbers
+  and hex values churn on every dependency bump and would make a
+  perfectly-fine, already-diagnosed issue look "new" forever.
+  - Signature matches a baseline entry → printed as `KNOWN`, one line, no
+    alarm.
+  - Signature matches nothing in the baseline → printed as **`NEW — not
+    previously accepted`**, prominently, with an explicit note that a
+    human must triage it: either fix it, or add it to
+    `KNOWN_OVERLAY_ISSUES` with a dated reason once someone has actually
+    looked at it.
+  - A baseline entry that matched nothing this run is printed as
+    **`STALE baseline entry`** — it may mean the issue was fixed upstream
+    and the entry should be removed, or (for a timing-dependent signature)
+    that it simply didn't fire within this run's window; the baseline
+    entry's own reason line says which applies.
+- Tri-state for this sub-check itself: if the CDP session never attached
+  (Step 7 failed before console capture could even be wired up), it
+  prints **DID NOT RUN** rather than a false "no issues found" — a check
+  that silently didn't run is exactly the failure mode this whole skill
+  exists to prevent. If capture was live, it always prints a report
+  (even "no console errors/warnings observed"), whether Step 7's own
+  verdict came back PASS, FAIL, or the run crashed partway through —
+  "prominent, never silent" means every exit path prints it.
+
+Seeded baseline (as of 2026-07-21, all confirmed to reproduce identically
+on `origin/main` — i.e. pre-existing, not caused by any change that
+introduced this check):
+
+- **next-themes script-tag warning** — `next-themes@0.4.6`'s
+  `ThemeProvider` renders an internal `<script>` tag to set the theme
+  attribute before hydration (its no-flash-of-wrong-theme technique).
+  React's dev-mode console warns about encountering a `<script>` element
+  mid-render, but the script still runs correctly pre-hydration — this is
+  a third-party, dev-only warning with no production impact, and it is
+  the dev overlay's error badge (its only entry, confirmed by reading the
+  overlay's own DOM content against a live run).
+- **Lit dev-mode notice** — `@reown/appkit-ui` /
+  `@reown/appkit-scaffold-ui` (WalletConnect's wallet-modal UI, pulled in
+  transitively via RainbowKit) build on the `lit` web-components library,
+  which logs a "Lit is in dev mode" notice whenever it isn't built for
+  production — third-party, dev-only, no production impact.
+  Does not appear in the dev-overlay badge, console warning only.
+- **Public-RPC CORS failures for the native-currency price fetch** —
+  `fetchPriceFromUniswap.ts` tries the scaffold's shared public demo
+  Alchemy key first, then falls back to the public RPC `eth.merkle.io`;
+  both now reject the browser's cross-origin `eth_call` with a CORS
+  preflight failure. The code catches this and falls back to a price of
+  0 — no crash, console/network noise only, and unrelated to the local
+  devnode chain this skill actually drives. Third-party (both endpoints'
+  CORS policy), pre-existing on `origin/main`.
+
 ### data-testid surface
 
 These are additive-only tags on the exact elements this script drives —

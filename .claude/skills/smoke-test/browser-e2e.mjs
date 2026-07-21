@@ -71,6 +71,181 @@ const HEADLESS = process.env.SMOKE_TEST_HEADFUL !== "1";
 const ARTIFACT_DIR = path.join(os.tmpdir(), "smoke-test-artifacts");
 fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
 
+// ---------------------------------------------------------------------------
+// Dev-overlay / console advisory -- ADVISORY ONLY, see printDevOverlayAdvisory
+// ---------------------------------------------------------------------------
+//
+// The Next.js dev overlay's error badge and the browser console are not
+// checked by any assertion above -- a run can pass every assertion while the
+// app is quietly reporting a problem via the overlay. This section collects
+// console/runtime events and the overlay's own DOM state for the whole
+// session and reports them prominently, but a match here NEVER changes the
+// PASS/FAIL/INCONCLUSIVE verdict: some of these come from third-party code
+// or third-party services this repo doesn't control, and a gate nobody can
+// satisfy is a gate people learn to route around.
+//
+// To keep a silent "1 issue" from drifting to 3 unnoticed, every observed
+// issue is matched against this known-issues baseline by a short, stable
+// substring (never a full stack trace -- line numbers churn on every
+// dependency bump). Add an entry here, dated, with a one-line reason, once a
+// human has actually looked at a NEW issue and decided it's acceptable.
+const KNOWN_OVERLAY_ISSUES = [
+  {
+    match: "Encountered a script tag while rendering React component",
+    acceptedDate: "2026-07-21",
+    reason:
+      "Third-party: next-themes@0.4.6's ThemeProvider renders an internal <script> tag " +
+      "to set the theme attribute before hydration (its no-flash-of-wrong-theme trick). " +
+      "React's dev-mode console warns about seeing a <script> element mid-render, but the " +
+      "script still runs correctly pre-hydration -- dev-only, no production impact. This IS " +
+      "the dev-overlay's error badge (its only entry). Confirmed pre-existing on origin/main " +
+      "(identical ThemeProvider.tsx/layout.tsx and next-themes/next versions); not caused by " +
+      "any change on this branch.",
+  },
+  {
+    match: "Lit is in dev mode",
+    acceptedDate: "2026-07-21",
+    reason:
+      "Third-party: @reown/appkit-ui and @reown/appkit-scaffold-ui (WalletConnect's wallet " +
+      "modal UI, pulled in transitively via RainbowKit) build on the `lit` web-components " +
+      "library, which logs this notice whenever it isn't built in production mode -- a dev- " +
+      "only self-check with no production impact. Does not appear in the dev-overlay badge, " +
+      "console warning only.",
+  },
+  {
+    match: "eth.merkle.io",
+    acceptedDate: "2026-07-21",
+    reason:
+      "Third-party: fetchPriceFromUniswap.ts's viem client falls back to the public mainnet " +
+      "RPC eth.merkle.io once the Alchemy demo key below also fails, and that endpoint " +
+      "rejects the browser's cross-origin eth_call with a CORS preflight failure. Caught in " +
+      "code, falls back to a price of 0 -- no crash, console/network noise only, unrelated to " +
+      "the local devnode chain this skill actually drives. Confirmed pre-existing on " +
+      "origin/main (identical fetchPriceFromUniswap.ts); not caused by any change on this " +
+      "branch.",
+  },
+  {
+    match: "eth-mainnet.g.alchemy.com/v2/oKxs-03sij",
+    acceptedDate: "2026-07-21",
+    reason:
+      "Third-party: `oKxs-03sij-U_N0iOlrSsZFr29-IqbuF` is scaffold-eth-2's long-standing " +
+      "shared public demo Alchemy key (DEFAULT_ALCHEMY_API_KEY in scaffold.config.ts), used " +
+      "when no NEXT_PUBLIC_ALCHEMY_API_KEY is configured. That shared demo endpoint now " +
+      "rejects browser cross-origin calls with a CORS failure; the code falls back further " +
+      "to eth.merkle.io (see the entry above) and ultimately to a price of 0. Confirmed " +
+      "pre-existing on origin/main (identical scaffold.config.ts default key); not caused by " +
+      "any change on this branch.",
+  },
+  {
+    match: "useNativeCurrencyPrice - Error fetching",
+    acceptedDate: "2026-07-21",
+    reason:
+      "Same root cause as the two eth.merkle.io/Alchemy CORS entries above -- this is the " +
+      "application-level console.error once fetchPriceFromUniswap.ts's retries are fully " +
+      "exhausted. Timing-dependent: it only fires once viem gives up, which can land after " +
+      "this run's capture window closes, so it will not appear on every run -- that's " +
+      "expected, not a sign the baseline is stale.",
+  },
+];
+
+function matchBaseline(signature) {
+  return KNOWN_OVERLAY_ISSUES.find(known => signature.includes(known.match));
+}
+
+// First line only, dependency-version/address noise stripped, so the
+// signature is what a human would recognize as "the same error" even after
+// unrelated line-number or hex-value churn.
+function normalizeSignature(text) {
+  return String(text)
+    .split("\n")[0]
+    .replace(/0x[0-9a-fA-F]+/g, "0x…")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function consoleArgText(arg) {
+  if (arg.value !== undefined) return String(arg.value);
+  if (arg.description) return arg.description.split("\n")[0];
+  if (arg.className) return arg.className;
+  return arg.type || "";
+}
+
+// Mutated for the life of the run, then read by printDevOverlayAdvisory()
+// from both the success and failure exit paths at the bottom of this file --
+// this must report every run, not just a PASS, per the "never silently" rule.
+const devOverlayState = {
+  advisoryRan: false,
+  collectedIssues: new Map(), // signature -> { source, level, signature, count, sample }
+  overlayCheck: null,
+  overlayCheckError: null,
+};
+
+function recordIssue(source, level, rawText) {
+  const signature = normalizeSignature(rawText);
+  if (!signature) return;
+  const key = `${level}:${signature}`;
+  const existing = devOverlayState.collectedIssues.get(key);
+  if (existing) existing.count += 1;
+  else devOverlayState.collectedIssues.set(key, { source, level, signature, count: 1, sample: String(rawText).slice(0, 500) });
+}
+
+// Best-effort read of the Next.js dev overlay's own DOM state. This is
+// corroborating context for the report only -- the overlay's internal shadow-
+// DOM markup is undocumented and Next-version-specific, so signature matching
+// above relies on the console/runtime capture (stable browser APIs), not on
+// parsing this structure.
+async function checkDevOverlay(cdp) {
+  return evaluate(
+    cdp,
+    `(() => {
+      const portal = document.querySelector('nextjs-portal');
+      if (!portal || !portal.shadowRoot) return { present: false };
+      const text = portal.shadowRoot.textContent || "";
+      const headingMatch = text.match(/Console Error|Build Error|Unhandled Runtime Error|Runtime Error/);
+      return { present: true, heading: headingMatch ? headingMatch[0] : null };
+    })()`,
+  );
+}
+
+// Prints the advisory report. Called from BOTH the success and failure exit
+// paths at the bottom of this file so a match is reported "prominently,
+// never silently" regardless of the run's PASS/FAIL/INCONCLUSIVE verdict --
+// and never throws, since a failure in here must not change that verdict.
+function printDevOverlayAdvisory() {
+  console.log("");
+  console.log("=== Dev-overlay / console advisory (ADVISORY ONLY -- does not affect the verdict above) ===");
+  if (!devOverlayState.advisoryRan) {
+    console.log("DID NOT RUN -- console/runtime capture was never enabled (Chrome/CDP session never attached).");
+    return;
+  }
+  const observed = [...devOverlayState.collectedIssues.values()];
+  if (!observed.length) {
+    console.log("No console errors/warnings observed during this run.");
+  }
+  const matchedBaseline = new Set();
+  for (const issue of observed) {
+    const baseline = matchBaseline(issue.signature);
+    if (baseline) {
+      matchedBaseline.add(baseline.match);
+      console.log(`KNOWN  [${issue.source}/${issue.level}] (x${issue.count}) ${issue.signature.slice(0, 160)}`);
+    } else {
+      console.log(`NEW — not previously accepted  [${issue.source}/${issue.level}] (x${issue.count}) ${issue.signature.slice(0, 300)}`);
+      console.log(`  -> a human must triage this: fix it, or add it to KNOWN_OVERLAY_ISSUES in browser-e2e.mjs with a dated reason.`);
+    }
+  }
+  for (const known of KNOWN_OVERLAY_ISSUES) {
+    if (!matchedBaseline.has(known.match)) {
+      console.log(`STALE baseline entry (accepted ${known.acceptedDate}, not observed this run) -- consider removing: "${known.match}"`);
+    }
+  }
+  if (devOverlayState.overlayCheckError) {
+    console.log(`Dev-overlay DOM check: DID NOT RUN -- ${devOverlayState.overlayCheckError.message}`);
+  } else if (devOverlayState.overlayCheck) {
+    const { present, heading } = devOverlayState.overlayCheck;
+    console.log(`Dev-overlay DOM check: nextjs-portal present=${present}${present ? `, heading=${heading ?? "none"}` : ""}`);
+  }
+}
+
 const results = []; // { name, status: "PASS"|"FAIL"|"SKIP", detail }
 function record(name, status, detail = "") {
   results.push({ name, status, detail });
@@ -212,6 +387,15 @@ class CDP {
       set.add(handler);
     });
   }
+
+  // Persistent listener for every occurrence of `method` for the life of the
+  // session -- used by the dev-overlay/console advisory collector below,
+  // which needs to see every console message from CDP session attach through
+  // the end of the run, not just one occurrence.
+  on(method, handler) {
+    if (!this.eventListeners.has(method)) this.eventListeners.set(method, new Set());
+    this.eventListeners.get(method).add(handler);
+  }
 }
 
 async function evaluate(cdp, expression) {
@@ -330,7 +514,28 @@ async function main() {
   const cdp = new CDP(ws);
   await cdp.send("Page.enable");
   await cdp.send("Runtime.enable");
+  await cdp.send("Log.enable");
   log(`CDP session attached to tab ${tab.id}`);
+
+  // Dev-overlay/console advisory: register BEFORE any navigation so it
+  // captures the whole session, not just messages after some later point.
+  // See printDevOverlayAdvisory() for what happens with what's collected.
+  cdp.on("Log.entryAdded", params => {
+    if (params.entry.level !== "error") return;
+    // entry.text alone is often a generic "Failed to load resource: net::ERR_FAILED" --
+    // append the URL so the signature identifies WHICH resource, not any resource.
+    const url = params.entry.url ? ` (url: ${params.entry.url})` : "";
+    recordIssue("Log", "error", `${params.entry.text}${url}`);
+  });
+  cdp.on("Runtime.consoleAPICalled", params => {
+    if (params.type !== "error" && params.type !== "warning") return;
+    recordIssue("Console", params.type, params.args.map(consoleArgText).join(" "));
+  });
+  cdp.on("Runtime.exceptionThrown", params => {
+    const desc = params.exceptionDetails.exception?.description || params.exceptionDetails.text;
+    recordIssue("Exception", "error", desc);
+  });
+  devOverlayState.advisoryRan = true;
 
   let miner;
 
@@ -574,6 +779,16 @@ async function main() {
   const explorerScreenshot = await screenshot(cdp, "blockexplorer-pagination");
   log(`Screenshot: ${explorerScreenshot}`);
 
+  // Dev-overlay/console advisory: best-effort DOM read, after the full flow
+  // has run so the overlay has had every chance to have picked something up.
+  // Failure here is caught, not thrown -- an advisory that can crash Step 7
+  // would no longer be advisory. See printDevOverlayAdvisory() at exit.
+  try {
+    devOverlayState.overlayCheck = await checkDevOverlay(cdp);
+  } catch (err) {
+    devOverlayState.overlayCheckError = err;
+  }
+
   // Clean shutdown: close our tab, then kill Chrome and its temp profile.
   await fetch(`http://127.0.0.1:${debugPort}/json/close/${tab.id}`).catch(() => {});
   await killChromeGroup(chrome.pid);
@@ -607,6 +822,7 @@ main()
     console.log("=== Step 7 results ===");
     for (const r of results) console.log(`${r.status}: ${r.name}${r.detail ? ` (${r.detail})` : ""}`);
     console.log(`Screenshots: ${debugScreenshot}, ${explorerScreenshot}`);
+    printDevOverlayAdvisory();
     console.log("RESULT: PASS");
     process.exit(0);
   })
@@ -614,6 +830,7 @@ main()
     console.log("");
     console.log("=== Step 7 results ===");
     for (const r of results) console.log(`${r.status}: ${r.name}${r.detail ? ` (${r.detail})` : ""}`);
+    printDevOverlayAdvisory();
 
     const isEnvIssue = err instanceof EnvironmentError;
     console.log(`RESULT: ${isEnvIssue ? "INCONCLUSIVE" : "FAIL"}: ${err.message}`);
