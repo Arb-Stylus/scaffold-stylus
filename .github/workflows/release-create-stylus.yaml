@@ -87,6 +87,8 @@ jobs:
             --exclude='__test*__' \
             --exclude='CHANGELOG*' \
             --exclude='CONTRIBUTING*' \
+            --exclude='.claude/' \
+            --exclude='.worktrees/' \
             source_repo/ destination_repo/templates/base
           cd destination_repo
           git add .
