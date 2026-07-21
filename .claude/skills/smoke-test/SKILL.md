@@ -199,13 +199,21 @@ This runs `nitro-devnode/start-chain-with-cors.sh`, which `docker run
 upgrade itself. Do not schedule it again here — Step 3 only *verifies* it
 landed.
 
-Assertion — poll until the RPC answers, capped at 90s:
+Assertion — poll until the RPC answers, capped at 90s. Uses `$SECONDS`
+(a bash/zsh builtin) for the bound instead of GNU coreutils `timeout`,
+which is not present on stock macOS:
 
 ```bash
-timeout 90 bash -c \
-  'until curl -s -X POST -H "Content-Type: application/json" \
-     --data "{\"jsonrpc\":\"2.0\",\"method\":\"net_version\",\"params\":[],\"id\":1}" \
-     http://127.0.0.1:8547 | grep -q result; do sleep 1; done'
+deadline=$((SECONDS + 90))
+until curl -s -X POST -H "Content-Type: application/json" \
+    --data '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}' \
+    http://127.0.0.1:8547 | grep -q result; do
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    echo "timed out waiting for devnode RPC" >&2
+    exit 1
+  fi
+  sleep 1
+done
 ```
 
 - `docker` fails to pull/start the image (daemon issue, network issue) →
@@ -354,11 +362,18 @@ node .claude/skills/smoke-test/state.mjs set frontendPort "$FRONTEND_PORT"
 Runs `next dev` on `$FRONTEND_PORT` (chosen in Step 0 — Next.js honours
 the `PORT` env var when no explicit `--port` is passed).
 
-Assertion — poll up to 90s (first compile can be slow):
+Assertion — poll up to 90s (first compile can be slow). Uses `$SECONDS`
+instead of GNU coreutils `timeout`, which is not present on stock macOS:
 
 ```bash
-timeout 90 bash -c \
-  "until [ \"\$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${FRONTEND_PORT})\" = '200' ]; do sleep 2; done"
+deadline=$((SECONDS + 90))
+until [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${FRONTEND_PORT})" = '200' ]; do
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    echo "timed out waiting for frontend to respond 200" >&2
+    exit 1
+  fi
+  sleep 2
+done
 ```
 
 - `$FRONTEND_PORT` already bound (shouldn't happen — Step 0 just probed

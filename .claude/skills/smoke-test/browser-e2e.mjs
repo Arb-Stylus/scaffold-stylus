@@ -481,22 +481,34 @@ async function main() {
   miner = startMiner();
   log("Started background miner (1 tx/s) to keep blocks flowing during pagination");
 
-  const readBlockNumbers = `(() => Array.from(document.querySelectorAll('[data-testid="blockexplorer-block-number"]')).map(el => el.textContent.trim()))()`;
-  const page1Blocks = await evaluate(cdp, readBlockNumbers);
-  if (!page1Blocks.length) {
+  // Read each row's block number (for the blank-cell check) AND its
+  // transaction hash (via the row's link to /blockexplorer/transaction/<hash>).
+  // Block number alone is not a valid duplicate-row signal: when a block's
+  // transactions straddle a page boundary, the same block number legitimately
+  // appears on both pages for two DIFFERENT transactions. Hash identity is
+  // what "duplicate row" actually means.
+  const readRows = `(() => Array.from(document.querySelectorAll('[data-testid="blockexplorer-row"]')).map(row => {
+    const blockNum = row.querySelector('[data-testid="blockexplorer-block-number"]')?.textContent.trim() ?? "";
+    const link = row.querySelector('a[href*="/blockexplorer/transaction/"]');
+    const hash = link ? link.getAttribute("href").split("/").pop() : "";
+    return { blockNum, hash };
+  }))()`;
+  const page1Rows = await evaluate(cdp, readRows);
+  if (!page1Rows.length) {
     stopMiner(miner);
     throw new AssertionFailure("Block explorer page 1 rendered no rows -- expected at least the deploy/write transactions");
   }
-  if (page1Blocks.some(b => b === "")) {
+  if (page1Rows.some(r => r.blockNum === "" || r.hash === "")) {
     stopMiner(miner);
-    throw new AssertionFailure(`Block explorer page 1 has a blank block-number cell: ${JSON.stringify(page1Blocks)}`);
+    throw new AssertionFailure(`Block explorer page 1 has a blank block-number or tx-hash cell: ${JSON.stringify(page1Rows)}`);
   }
-  log(`Page 1 block numbers: ${JSON.stringify(page1Blocks)}`);
+  log(`Page 1 rows: ${JSON.stringify(page1Rows)}`);
 
   const page1Label = await evaluate(
     cdp,
     `document.querySelector('[data-testid="blockexplorer-page-label"]').textContent.trim()`,
   );
+  const page1RowsJson = JSON.stringify(page1Rows);
 
   const nextClicked = await evaluate(
     cdp,
@@ -516,26 +528,43 @@ async function main() {
     stopMiner(miner);
     throw new AssertionFailure(`Could not click block explorer next-page button: ${nextClicked}`);
   } else {
+    // Wait for BOTH the page label to advance AND the row data itself to
+    // change from page 1's snapshot. The label is cheap React state that
+    // commits synchronously on click; the table's row data depends on an
+    // async re-fetch (walks blocks backward from the pagination anchor over
+    // the websocket RPC) that lands on a LATER render. Waiting on the label
+    // alone races ahead of that re-fetch and can read page 1's stale rows
+    // under an already-updated "Page 2" label -- confirmed via manual replay
+    // against the live stack: immediately after the label flip the rows were
+    // still byte-identical to page 1, and ~2s later (still no further click)
+    // they had settled into the correct, non-duplicate page 2 rows.
     await waitFor(
       cdp,
-      `document.querySelector('[data-testid="blockexplorer-page-label"]')?.textContent.trim() !== ${JSON.stringify(page1Label)}`,
-      { timeoutMs: 15000, description: "page label advanced past page 1" },
+      `(() => {
+        const label = document.querySelector('[data-testid="blockexplorer-page-label"]')?.textContent.trim();
+        if (label === ${JSON.stringify(page1Label)}) return false;
+        const rows = ${readRows};
+        return JSON.stringify(rows) !== ${JSON.stringify(page1RowsJson)};
+      })()`,
+      { timeoutMs: 15000, description: "page label advanced past page 1 AND row data refreshed to new content" },
     );
-    const page2Blocks = await evaluate(cdp, readBlockNumbers);
-    log(`Page 2 block numbers: ${JSON.stringify(page2Blocks)}`);
+    const page2Rows = await evaluate(cdp, readRows);
+    log(`Page 2 rows: ${JSON.stringify(page2Rows)}`);
 
-    if (!page2Blocks.length) {
+    if (!page2Rows.length) {
       stopMiner(miner);
       throw new AssertionFailure("Block explorer page 2 rendered no rows after a successful page-forward click");
     }
-    if (page2Blocks.some(b => b === "")) {
+    if (page2Rows.some(r => r.blockNum === "" || r.hash === "")) {
       stopMiner(miner);
-      throw new AssertionFailure(`Block explorer page 2 has a blank block-number cell: ${JSON.stringify(page2Blocks)}`);
+      throw new AssertionFailure(`Block explorer page 2 has a blank block-number or tx-hash cell: ${JSON.stringify(page2Rows)}`);
     }
-    const overlap = page2Blocks.filter(b => page1Blocks.includes(b));
+    const page1Hashes = page1Rows.map(r => r.hash);
+    const page2Hashes = page2Rows.map(r => r.hash);
+    const overlap = page2Hashes.filter(h => page1Hashes.includes(h));
     if (overlap.length) {
       stopMiner(miner);
-      throw new AssertionFailure(`Block explorer pages 1 and 2 share block number(s) ${JSON.stringify(overlap)} -- pagination is duplicating rows under live mining`);
+      throw new AssertionFailure(`Block explorer pages 1 and 2 share transaction(s) ${JSON.stringify(overlap)} -- pagination is duplicating rows under live mining`);
     }
     record("blockexplorer-pagination", "PASS", "page 2 has no blank/duplicate rows vs page 1, despite continuous mining");
   }

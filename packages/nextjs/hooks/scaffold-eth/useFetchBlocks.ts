@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Address,
   Block,
@@ -107,6 +107,21 @@ export const useFetchBlocks = (addressFilter?: Address) => {
   const [hasNextPage, setHasNextPage] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Pagination beyond page 0 is anchored to a block number captured when the
+  // user last left page 0, instead of re-reading the live tip on every page
+  // change. Re-reading the tip on every page change let the window slide out
+  // from under the user on a continuously-mining chain, so page N and page
+  // N+1 could overlap or repeat. Page 0 always re-anchors to the live tip
+  // (matching upstream's unconditional testClient.getBlockNumber() call) so
+  // returning to page 0 after a long session shows the current tip rather
+  // than a stale snapshot -- upstream never anchors at all, so this is the
+  // one point where our behavior intentionally diverges from it, made
+  // necessary by how much more aggressively our devnode mines. Live blocks
+  // still append to page 0 via watchBlocks below, which is unaffected by
+  // this anchor.
+  const anchorBlockRef = useRef<bigint | null>(null);
+  const anchorFilterRef = useRef<Address | undefined>(addressFilter);
+
   const matchesAddressFilter = useCallback(
     (tx: Transaction) => {
       if (!addressFilter) return true;
@@ -120,8 +135,12 @@ export const useFetchBlocks = (addressFilter?: Address) => {
     setError(null);
 
     try {
-      const blockNumber = await testClient.getBlockNumber();
-      const fetchedItems = await fetchPageItems(blockNumber, currentPage, matchesAddressFilter);
+      if (currentPage === 0 || anchorBlockRef.current === null || anchorFilterRef.current !== addressFilter) {
+        anchorBlockRef.current = await testClient.getBlockNumber();
+        anchorFilterRef.current = addressFilter;
+      }
+      const latestBlock = anchorBlockRef.current;
+      const fetchedItems = await fetchPageItems(latestBlock, currentPage, matchesAddressFilter);
       const items = fetchedItems.slice(0, TRANSACTIONS_PER_PAGE);
 
       items.forEach(({ tx }) => decodeTransactionData(tx));
@@ -144,7 +163,7 @@ export const useFetchBlocks = (addressFilter?: Address) => {
     } catch (err) {
       setError(err instanceof Error ? err : new Error("An error occurred."));
     }
-  }, [currentPage, matchesAddressFilter]);
+  }, [currentPage, matchesAddressFilter, addressFilter]);
 
   useEffect(() => {
     fetchBlocks();
