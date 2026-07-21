@@ -60,6 +60,10 @@ KNOWN CONSTRAINTS — a recommendation that violates any of these is WRONG, not 
   in it. A claim about PR/branch contents that is not backed by a diff you personally read is a guess, not a
   finding — do not report it as one, and do not recommend splitting or altering a PR based on what its name
   implies.
+- A VERSION GAP IS NOT A FINDING — THE CHANGELOG IS. Reporting "current X, latest Y" is an observation, not a
+  finding. For ANY gap you report, read the release notes for EVERY intervening version, not just the newest,
+  and state what actually changed and whether it affects THIS project. A report of bare version numbers has
+  FAILED and must be treated as incomplete.
 ${VERIFIED_BASELINE}
 
 Do NOT recommend an upgrade merely because a newer version exists. Recommend only when the delta fixes a real
@@ -88,6 +92,25 @@ const FINDINGS = {
     },
   },
 }
+
+const TOOL_TRAPS = `
+TOOL TRAPS — each of these has produced a wrong result on a real run. The consequence is stated, not just the
+instruction, because an instruction without its consequence gets skipped:
+- 'gh api ... --paginate' is MANDATORY on the Dependabot alerts endpoint. Measured on a sibling repo: 25 alerts
+  without --paginate vs 29 with it. Omitting it silently UNDER-REPORTS, and the missing alerts look like a clean
+  result instead of a gap.
+- 'gh release list' sorts by DATE, not by "latest stable" — a pre-release published after the last stable tag
+  sorts ABOVE it. Use '--exclude-pre-releases', or you will report a pre-release as the current latest version.
+- 'npm view <pkg> version' returns the latest dist-tag, which can LAG the newest published version. Do not treat
+  it as ground truth for "is there something newer".
+- A wrong GitHub org/repo in a query FAILS in a way that is INDISTINGUISHABLE from "no alerts found". Verify the
+  org/repo you resolved from 'git remote get-url origin' before trusting a clean result.
+- The GitHub dependency graph can be UNPOPULATED while Dependabot alerts are enabled. When that happens, the
+  alerts endpoint returns [] and 'GET /repos/{owner}/{repo}/dependency-graph/sbom' 404s. An empty alerts
+  response in that state is an ARTIFACT of an unpopulated graph, not a clean result — confirm the SBOM endpoint
+  returns 200 before trusting an empty alerts list. Proof this matters: discovered on the 2026-07-21 run, this
+  repo's tree provably contains postcss 8.4.31 (GHSA-qx2v-qp2m-jg93), which Dependabot should have flagged and
+  did not.`
 
 const SYNTHESIS_FINDINGS = {
   type: 'object', additionalProperties: false, required: ['summary', 'findings', 'notRunOrUnchecked'],
@@ -165,7 +188,9 @@ Security audit. Report only — fix nothing.
 Run ALL of these and report the ACTUAL output:
 1. gh api repos/{owner}/{repo}/dependabot/alerts --paginate
    (derive owner/repo from 'git remote get-url origin'. If it 403s or the feature is disabled, SAY SO —
-   absence of alerts because the feature is off is NOT "no alerts".)
+   absence of alerts because the feature is off is NOT "no alerts". If this returns an empty list, you MUST also
+   check 'gh api repos/{owner}/{repo}/dependency-graph/sbom' before treating that emptiness as clean — see TOOL
+   TRAPS below.)
 2. npm audit from packages/nextjs — use a form that does NOT modify the lockfile ('npm audit --json' against the
    existing lockfile). If the only available form would mutate files, skip and say why.
 3. cargo audit for the Rust side. If cargo-audit is not installed, REPORT THAT — do not install it.
@@ -180,6 +205,7 @@ CRITICAL — every result must be classified as exactly one of these, and they m
   (c) vulnerability found but NOT exploitable in this codebase
 State which case applies for each tool you tried. A clean report from a scanner that never ran is worthless and
 must be reported as severity "unchecked", not "up-to-date".
+${TOOL_TRAPS}
 ${CONSTRAINTS}`,
   },
   {

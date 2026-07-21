@@ -52,6 +52,10 @@ These are injected into every agent prompt. A recommendation that violates one i
   quote what's actually there. A claim about PR/branch contents not backed by a diff the agent actually read is
   a guess, not a finding. (This is the exact failure that produced a false "split PR #81, drop the 0.10.8 half"
   recommendation on 2026-07-21 — the agent read the branch name, not the diff.)
+- **A version gap is not a finding — the changelog is.** Reporting "current X, latest Y" is an observation, not
+  a finding. For any gap, read the release notes for every intervening version, not just the newest, and state
+  what actually changed and whether it affects this project. Bare version numbers with no changelog read is a
+  failed audit, not a complete one.
 
 ### Verified baseline
 
@@ -83,6 +87,27 @@ The script forces each security result into one of these. Read them carefully:
 
 State 2 is not "clean". A green report from a scanner that never ran proves nothing — treat it as an unchecked
 dimension and say so.
+
+## Tool traps
+
+Injected into the `security` dimension prompt specifically — each has produced a wrong result on a real run, so
+the consequence is stated alongside the instruction rather than left implicit:
+
+- `gh api ... --paginate` is **mandatory** on the Dependabot alerts endpoint. Measured on a sibling repo: 25
+  alerts without `--paginate` vs 29 with it. Omitting it silently **under-reports**, and the missing alerts look
+  like a clean result instead of a gap.
+- `gh release list` sorts by **date**, not "latest stable" — a pre-release published after the last stable tag
+  sorts above it. Use `--exclude-pre-releases`, or a pre-release gets reported as the current latest version.
+- `npm view <pkg> version` returns the latest **dist-tag**, which can lag the newest published version. Don't
+  treat it as ground truth for "is there something newer".
+- A wrong GitHub org/repo in a query fails in a way that is **indistinguishable from "no alerts found"**. Verify
+  the org/repo resolved from `git remote get-url origin` before trusting a clean result.
+- The GitHub dependency graph can be **unpopulated** while Dependabot alerts are enabled. When that happens, the
+  alerts endpoint returns `[]` and `GET /repos/{owner}/{repo}/dependency-graph/sbom` 404s. An empty alerts
+  response in that state is an artifact of an unpopulated graph, not a clean result — confirm the SBOM endpoint
+  returns 200 before trusting an empty alerts list. Proof this matters: discovered on the 2026-07-21 run, this
+  repo's tree provably contains `postcss` 8.4.31 (GHSA-qx2v-qp2m-jg93), which Dependabot should have flagged and
+  did not.
 
 ## End-of-run disclosure — what did NOT run
 
