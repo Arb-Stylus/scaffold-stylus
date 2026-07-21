@@ -452,6 +452,12 @@ in order:
    across the page-forward click. This is the regression check
    `useFetchBlocks.ts`/`app/blockexplorer/**` exist for (hand-ported from
    upstream in `351a34a`, never previously run against a live devnode).
+9. Navigate to `/` (the homepage) and wait for it to render. No new hard
+   assertion beyond that — this step exists purely for console/overlay
+   coverage. The burner wallet is already connected by this point, so the
+   homepage's `<Address address={connectedAddress} />` renders for real,
+   unlike `/debug` and `/blockexplorer` which never show it; this is the
+   page where a connected address's ENS name/avatar lookups actually fire.
 
 Every interactive element the script drives has an additive
 `data-testid` (see "data-testid surface" below) — the script does not
@@ -529,6 +535,20 @@ main PASS/FAIL:
   verdict came back PASS, FAIL, or the run crashed partway through —
   "prominent, never silent" means every exit path prints it.
 
+Signature rule (see the comment above `KNOWN_OVERLAY_ISSUES` in
+`browser-e2e.mjs`): match on something that identifies the CODEPATH — a
+calling hook/component name, or an application-level error-message prefix
+— never on a bare third-party hostname alone. A shared host (a public RPC,
+a demo API key) can be hit by more than one unrelated feature; a bare-host
+match silently absorbs every future codepath that happens to hit the same
+host under one old "accepted" reason. This baseline used to carry a
+public-RPC-CORS entry attributed to the (now-removed) native-currency
+price fetch, matched on the bare `eth.merkle.io` / shared-Alchemy-key
+hostnames — an unrelated ENS lookup (`Address.tsx`) hit the same hosts and
+matched right through it unnoticed, until the price feature that
+"explained" the entry was deleted and the entry had to be re-diagnosed
+from scratch. Don't repeat that: name the codepath in the `match` string.
+
 Seeded baseline (as of 2026-07-21, all confirmed to reproduce identically
 on `origin/main` — i.e. pre-existing, not caused by any change that
 introduced this check):
@@ -547,14 +567,13 @@ introduced this check):
   which logs a "Lit is in dev mode" notice whenever it isn't built for
   production — third-party, dev-only, no production impact.
   Does not appear in the dev-overlay badge, console warning only.
-- **Public-RPC CORS failures for the native-currency price fetch** —
-  `fetchPriceFromUniswap.ts` tries the scaffold's shared public demo
-  Alchemy key first, then falls back to the public RPC `eth.merkle.io`;
-  both now reject the browser's cross-origin `eth_call` with a CORS
-  preflight failure. The code catches this and falls back to a price of
-  0 — no crash, console/network noise only, and unrelated to the local
-  devnode chain this skill actually drives. Third-party (both endpoints'
-  CORS policy), pre-existing on `origin/main`.
+
+ENS name/avatar lookups (`Address.tsx`, `useEnsName`/`useEnsAvatar`) and
+RainbowKit's own internal ENS resolution for the connected account no
+longer appear here: both are now gated off when the target network is the
+local devnode (see `isLocalNetwork` in `Address.tsx` and
+`isLocalOnlyConfig` in `wagmiConfig.tsx`), so they don't fire — and don't
+need a baseline entry — while this skill runs.
 
 ### data-testid surface
 
