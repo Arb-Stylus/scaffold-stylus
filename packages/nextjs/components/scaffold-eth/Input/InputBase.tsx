@@ -59,6 +59,7 @@ export const InputBase = <T extends { toString: () => string } | undefined = str
         autoComplete="off"
         ref={inputReft}
         onFocus={onFocus}
+        data-testid="function-input"
       />
       {suffix}
     </div>

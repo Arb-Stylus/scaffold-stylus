@@ -27,7 +27,10 @@ build artifacts it restores on a PASS in Step 8 (`deployedContracts.ts`)
 — see that step for the exact restore command. On FAIL/INCONCLUSIVE, Step
 8 deliberately leaves this file modified — it is debugging evidence, not
 a READ-ONLY violation; it gets restored the next time teardown actually
-runs.
+runs. The one standing exception is the additive `data-testid` attributes
+Step 7's browser automation drives (see that step's "data-testid surface"
+table) — pure attribute additions with no logic/render change, added once
+as a one-time scope decision, not something a run of this skill edits.
 
 ## Ordering Contract
 
@@ -173,9 +176,22 @@ blocks) and it never creates or edits the file itself.
 ## Step 2 — Start the devnode
 
 ```bash
-yarn chain &
-CHAIN_PID=$!
+CHAIN_LOG=$(mktemp -t smoke-test-chain.XXXXXX.log)
+CHAIN_PID=$(node .claude/skills/smoke-test/launch-detached.mjs "$CHAIN_LOG" ./nitro-devnode/start-chain-with-cors.sh)
+node .claude/skills/smoke-test/state.mjs set chainPid "$CHAIN_PID"
 ```
+
+Launched via `launch-detached.mjs`, not a plain `cmd &`: the devnode
+process is detached from this shell/session (Node's `spawn({detached:
+true})` calls `setsid(2)` directly, so it survives the session that
+started it — e.g. a crew session being closed — the same way a leaked
+container used to outlive a killed shell but the wrapper script around it
+didn't). Its PID is recorded in the shared state file
+(`.claude/skills/smoke-test/.smoke-state.json`, via `state.mjs`) rather
+than only living in this shell's `$CHAIN_PID` variable, so Step 8's
+teardown (and a human's escape hatch, on FAIL) can find and kill it even
+from a fresh shell. See "Detached processes and the state file" below Step
+8 for the full rationale.
 
 This runs `nitro-devnode/start-chain-with-cors.sh`, which `docker run
 --name nitro-dev -p 8547:8547 ...`, waits for the RPC, calls
@@ -317,16 +333,22 @@ receipt status of 1 (no `execution reverted`).
 
 Launch the `next` binary directly rather than through `yarn`/`yarn start`
 (which is `yarn workspace @ss/nextjs dev` -> `next dev`, per the root and
-`packages/nextjs` `package.json` scripts). Going through `yarn` makes
-`$!` capture the `yarn` wrapper's PID, not the actual dev-server process,
-which is why Step 8's teardown depends on this. `next dev` itself listens
-for SIGINT/SIGTERM, forwards it to the child process it forks internally,
-and SIGKILLs that child on its own exit — so a single captured PID is
-sufficient to tear down cleanly:
+`packages/nextjs` `package.json` scripts) — going through `yarn` would put
+an extra wrapper PID between us and the real dev-server process. `next
+dev` itself listens for SIGINT/SIGTERM, forwards it to the child process
+it forks internally, and SIGKILLs that child on its own exit — so a
+single captured PID is sufficient to tear down cleanly.
+
+Launched via `launch-detached.mjs`, same as Step 2's devnode, so it
+survives this shell/session exiting; its PID is recorded in the state
+file, not just a shell variable:
 
 ```bash
-PORT="$FRONTEND_PORT" packages/nextjs/node_modules/.bin/next dev packages/nextjs &
-NEXTJS_PID=$!
+NEXTJS_LOG=$(mktemp -t smoke-test-nextjs.XXXXXX.log)
+NEXTJS_PID=$(PORT="$FRONTEND_PORT" node .claude/skills/smoke-test/launch-detached.mjs \
+  "$NEXTJS_LOG" packages/nextjs/node_modules/.bin/next dev packages/nextjs)
+node .claude/skills/smoke-test/state.mjs set nextjsPid "$NEXTJS_PID"
+node .claude/skills/smoke-test/state.mjs set frontendPort "$FRONTEND_PORT"
 ```
 
 Runs `next dev` on `$FRONTEND_PORT` (chosen in Step 0 — Next.js honours
@@ -348,46 +370,119 @@ timeout 90 bash -c \
 
 ## Step 7 — Browser E2E (the whole chain, proven live)
 
-Use the `claude-in-chrome` browser tools for this step. Load them first
-(`ToolSearch` for `tabs_context_mcp`, `navigate`, `computer`, `read_page`,
-`tabs_create_mcp`) if not already loaded.
+Driven by pure Chrome DevTools Protocol via
+`.claude/skills/smoke-test/browser-e2e.mjs` — **zero new dependencies**
+(Node 24's native `WebSocket`/`fetch` are the whole transport). This
+replaced driving the browser through the `claude-in-chrome` MCP
+extension, which needs a human-attached browser, cannot run in CI, and
+stopped working outright (three consecutive "not connected" failures).
+Do not reintroduce the extension for this step, and do not add
+puppeteer/playwright/chrome-remote-interface/ws or any other package —
+if it can't be done with the Node standard library, stop and report that.
 
-**Never trigger a native browser dialog** (`alert`/`confirm`/`prompt`).
-This scaffold's flows (burner wallet, debug page) do not require one, but
-if any UI element looks like it might spawn one (e.g. a "reset" or
-"clear" button), skip it — a triggered dialog freezes the automation and
-the session must then be unblocked by hand.
+```bash
+FRONTEND_PORT="$FRONTEND_PORT" node .claude/skills/smoke-test/browser-e2e.mjs
+```
 
-1. Navigate to `http://localhost:$FRONTEND_PORT/debug` (the port captured
-   from Step 0's preflight output — do not assume 3000).
-2. **Assert `your-contract` appears in the debug contract list with its
-   read/write methods rendered** — not just that the page returned 200.
-   A page that merely renders is not a pass; you must see the specific
-   deployed contract with a live address.
-3. Connect the wallet: click Connect → select the local burner wallet
-   (RainbowKit `rainbowkitBurnerWallet`, wired in
-   `packages/nextjs/services/web3/wagmiConnectors.tsx` — it signs locally,
-   no external wallet popup, so it cannot itself trigger a native dialog).
-4. Call the read method `greeting()`. Assert it returns
-   `"Building Unstoppable Apps!!!"` (the constructor default in
-   `packages/stylus/contracts/your-contract/src/lib.rs`).
-5. Call the write method `setGreeting("smoke-test-<distinct-value>")`
-   with a value distinguishable from the default, and let the burner
-   wallet sign it. Wait for the transaction to confirm (success toast /
-   receipt in the UI).
-6. Call `greeting()` again. **Assert it now returns the value you just
-   set.** This read-back is what proves the full chain — devnode ->
-   deploy -> ABI generation -> scaffold hooks -> tx signing -> read-back
-   — not just that a page rendered.
-7. Take a screenshot as evidence of the read-back value on the debug
-   page, and keep it with the run's report.
+The script launches an isolated, detached Chrome (fresh `--user-data-dir`
+temp profile, probed-free `--remote-debugging-port`, headless by default
+— set `SMOKE_TEST_HEADFUL=1` for a visible window while debugging
+locally), drives it entirely through `Runtime.evaluate` (never synthetic
+mouse coordinates — coordinates are the fragile, flaky part of browser
+automation), and polls bounded conditions instead of sleeping a fixed
+duration wherever there isn't a CDP event to wait on instead. It asserts,
+in order:
 
-- Chrome extension / browser tools unavailable, or the debug page never
-  loads → **(b) DID NOT RUN — browser automation unavailable**.
-- Wallet won't connect, write tx reverts or never confirms, or the
-  read-back value doesn't match what was written → **(c) RAN and
-  failed**, with the mismatch and any console/network errors attached.
-- All of steps 2–6 hold and the screenshot is captured → **(a)**.
+1. Navigate to `http://localhost:$FRONTEND_PORT/debug`.
+2. **`your-contract`'s `setGreeting` write form actually renders** (via
+   `[data-testid="write-function-form-setGreeting"]`) — not just that the
+   page returned 200. A page that merely renders is not a pass.
+3. `greeting()` reads back the constructor default. Note: `displayTxResult()`
+   (`packages/nextjs/app/debug/_components/contract/utilsDisplay.tsx`)
+   `JSON.stringify()`s plain string results, so the rendered text is
+   `"Building Unstoppable Apps!!!"` **including the literal quote
+   characters** — match that exact form, not the bare string.
+4. The burner wallet is connected. It is IN-PAGE, not an extension — no
+   native dialog, so headless works identically to headful here. **Do not
+   assume a manual "Connect" click is required**: for the `arbitrumNitro`
+   network with `onlyLocalBurnerWallet` (`scaffold.config.ts`),
+   `ScaffoldEthAppWithProviders.tsx` calls `initBurnerPK()` unconditionally
+   on mount and wagmi auto-reconnects the burner connector, so the wallet
+   is very often already connected by the time the write form renders.
+   Check for that first; only drive the `[data-testid="connect-wallet"]`
+   → `[data-testid="burner-account-option"]` flow if a Connect button is
+   actually present. Selecting an account calls `window.location.reload()`
+   — wait on the CDP `Page.loadEventFired` event for that reload, not a
+   poll (polling `document.readyState` right after a client-side reload
+   can race and read the OLD document's already-"complete" state).
+5. Submit `setGreeting("smoke-test-<distinct-value>")` via
+   `[data-testid="write-function-submit"]`, after setting
+   `[data-testid="function-input"]`'s value through React's **native
+   input value setter** (`Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,
+   "value").set`) plus a manually dispatched `input` event — plain
+   `input.value = x` does not work on a React-controlled input; React's
+   own setter shadows the native one, the component's state never
+   updates, and the form silently submits empty.
+6. Poll `[data-testid="display-variable-greeting"] [data-testid="display-variable-value"]`
+   until it equals the new value. This single poll proves both that the
+   tx confirmed and that the read-back matches what was written — the
+   real assertion is this on-chain value changing, not a prose toast
+   string.
+7. Screenshot via `Page.captureScreenshot`, saved under
+   `$TMPDIR/smoke-test-artifacts/`.
+8. Navigate to `/blockexplorer` and page through blocks **while the
+   devnode is mining continuously** (the script runs a background
+   `cast send` loop for the duration of this check) — confirming rows via
+   `[data-testid="blockexplorer-*"]` do not shift, duplicate, or blank out
+   across the page-forward click. This is the regression check
+   `useFetchBlocks.ts`/`app/blockexplorer/**` exist for (hand-ported from
+   upstream in `351a34a`, never previously run against a live devnode).
+
+Every interactive element the script drives has an additive
+`data-testid` (see "data-testid surface" below) — the script does not
+match on visible text or CSS classes to find anything, only to read a
+value out of an element it already found by testid.
+
+- Chrome/Chromium binary not found, no free debugging port, or the CDP
+  endpoint/debug page never comes up within its bounded timeout → script
+  exits 1 → **(b) DID NOT RUN — browser automation unavailable**.
+- Wallet won't connect, write tx never confirms/reverts, the read-back
+  value doesn't match, or the block explorer shows a duplicate/blank row
+  under live mining → script exits 2 → **(c) RAN and failed**, with the
+  mismatch (and the screenshot) attached.
+- All assertions hold and both screenshots are captured → script exits 0
+  → **(a)**.
+
+On exit 0 the script kills its own Chrome and removes its temp profile
+dir. On exit 1/2 it leaves Chrome running (same "preserve failure state"
+policy as Step 8) and records its PID/debug port/profile dir in the state
+file so `teardown.sh`'s escape hatch can find and clean it up later.
+
+### data-testid surface
+
+These are additive-only tags on the exact elements this script drives —
+no logic/render changes. They are rsynced into the `create-stylus` npm
+template, so treat them as a small public surface: kebab-case, name the
+element (not what the test does with it), no emoji, no copy fragments.
+
+| testid | file:line |
+| --- | --- |
+| `connect-wallet` | `packages/nextjs/components/scaffold-eth/RainbowKitCustomConnectButton/index.tsx` |
+| `burner-account-option` | `packages/nextjs/components/scaffold-eth/RainbowKitCustomConnectButton/BurnerWalletModal.tsx` |
+| `write-function-form-<fnName>` | `packages/nextjs/app/debug/_components/contract/WriteOnlyFunctionForm.tsx` |
+| `write-function-submit` | `packages/nextjs/app/debug/_components/contract/WriteOnlyFunctionForm.tsx` |
+| `function-input` | `packages/nextjs/components/scaffold-eth/Input/InputBase.tsx` |
+| `display-variable-<fnName>` | `packages/nextjs/app/debug/_components/contract/DisplayVariable.tsx` |
+| `display-variable-value` | `packages/nextjs/app/debug/_components/contract/DisplayVariable.tsx` |
+| `blockexplorer-table` | `packages/nextjs/app/blockexplorer/_components/TransactionsTable.tsx` |
+| `blockexplorer-row` | `packages/nextjs/app/blockexplorer/_components/TransactionsTable.tsx` |
+| `blockexplorer-block-number` | `packages/nextjs/app/blockexplorer/_components/TransactionsTable.tsx` |
+| `blockexplorer-prev-page` / `blockexplorer-next-page` / `blockexplorer-page-label` | `packages/nextjs/app/blockexplorer/_components/PaginationButton.tsx` |
+
+Nothing was left untagged/fragile — every element the script interacts
+with has a testid. If a future revision of this script needs to target a
+new element, tag it the same way rather than falling back to text/class
+matching.
 
 ## Step 8 — Teardown (conditional on verdict)
 
@@ -411,10 +506,21 @@ run twice and safe to run when nothing is alive: killing an already-dead
 PID and removing an already-absent container both no-op quietly, and
 nothing in the script is allowed to start erroring on a repeat run.
 
+**`teardown.sh` reads PIDs from the state file
+(`.claude/skills/smoke-test/.smoke-state.json`) by default** — it needs
+no arguments at all. This matters now that Steps 2/6/7 launch their
+processes detached (survives the session that started them — see
+"Detached processes and the state file" below): a PID sitting only in
+`$NEXTJS_PID`/`$CHAIN_PID` in this shell is not enough anymore, since a
+human debugging a FAIL will very likely be in a *different* shell/session
+by the time they run teardown. `NEXTJS_PID=<pid> CHAIN_PID=<pid>` env
+vars still override the state file, for the rare case you want to target
+something else.
+
 ### On PASS
 
 ```bash
-NEXTJS_PID="$NEXTJS_PID" CHAIN_PID="$CHAIN_PID" .claude/skills/smoke-test/teardown.sh
+.claude/skills/smoke-test/teardown.sh
 ```
 
 - If the script's own step-7 verification prints any `LEAKED:` line or
@@ -427,19 +533,31 @@ NEXTJS_PID="$NEXTJS_PID" CHAIN_PID="$CHAIN_PID" .claude/skills/smoke-test/teardo
   touch mid-run (Step 4) — the script's `git checkout --` on it is what
   keeps the READ-ONLY contract's spirit intact on a PASS: the working
   tree must be bit-for-bit unchanged by the time this skill exits.
+- Step 7's `browser-e2e.mjs` already killed its own Chrome and cleared its
+  state-file keys on its own exit 0, so there's normally nothing Chrome-
+  related left for this script to do on a PASS.
 
 ### On FAIL / INCONCLUSIVE / crash
 
 Do not call `teardown.sh`. Instead print an escape hatch with this run's
 actual literal values substituted in (not `$VAR` references — the reader
-will use these in a fresh shell where the variables aren't set):
+will use these in a fresh shell where the variables aren't set; get them
+with `node .claude/skills/smoke-test/state.mjs dump` if they've scrolled
+out of view):
 
 ```
 === Smoke test did not pass — live state left running for debugging ===
-Frontend:    http://localhost:<FRONTEND_PORT>/debug
-NEXTJS_PID:  <NEXTJS_PID>
-CHAIN_PID:   <CHAIN_PID>
-Container:   nitro-dev
+Frontend:      http://localhost:<FRONTEND_PORT>/debug
+NEXTJS_PID:    <NEXTJS_PID>
+CHAIN_PID:     <CHAIN_PID>
+Container:     nitro-dev
+CHROME_PID:    <chromePid, if Step 7 got far enough to launch one>
+Chrome debug:  http://127.0.0.1:<chromeDebugPort>/json
+
+All of the above genuinely survive this session ending — they were
+launched detached (launch-detached.mjs / browser-e2e.mjs's spawn with
+detached:true), specifically so this escape hatch isn't printing PIDs
+that are already dead by the time you read them.
 
 The working tree is left DIRTY on purpose: packages/nextjs/contracts/
 deployedContracts.ts stays modified and packages/stylus/deployments
@@ -449,9 +567,39 @@ that is the intended loud signal that a prior run failed and was never
 torn down, not a mysterious bug. Do not treat exit 4 as "something is
 broken" without first checking whether it's this.
 
-When done debugging, tear everything down with:
-  NEXTJS_PID=<NEXTJS_PID> CHAIN_PID=<CHAIN_PID> .claude/skills/smoke-test/teardown.sh
+When done debugging, tear everything down with (no arguments needed --
+it reads .smoke-state.json):
+  .claude/skills/smoke-test/teardown.sh
 ```
+
+### Detached processes and the state file
+
+Before this fix, Steps 2/6 launched the devnode and frontend as plain
+`cmd &` background jobs. That PID lived only in a shell variable, and the
+process itself stayed in the same process group as the shell that
+started it. Both of those broke the FAIL-path escape hatch above: a
+crew/session ending sends its terminating signal to that whole process
+group, killing the "preserved" devnode and frontend along with it, so
+the escape hatch printed PIDs that were already dead by the time a human
+read them — teardown-on-FAIL was theatre, not a real safety net.
+
+The fix has two parts, used by Steps 2, 6, and (on FAIL) 7:
+
+- **`launch-detached.mjs`** launches a command via Node's
+  `spawn({detached: true})`, which calls `setsid(2)` directly through
+  libuv on POSIX — making the child a new session/process-group leader,
+  immune to signals sent to the launching shell's group. (Deliberately
+  *not* implemented by shelling out to the `setsid` CLI binary: that's
+  util-linux and isn't present on macOS by default, unlike the libuv
+  syscall path, which works identically on macOS and Linux.)
+- **`state.mjs`** is the durable record of what's alive —
+  `.claude/skills/smoke-test/.smoke-state.json` (gitignored), keyed by
+  `chainPid`, `nextjsPid`, `frontendPort`, and (only when Step 7 leaves
+  Chrome running on a non-PASS exit) `chromePid`/`chromeDebugPort`/
+  `chromeUserDataDir`. `teardown.sh` reads it instead of relying on shell
+  variables that don't outlive the session; `preflight.sh` also checks
+  for a leftover state file as a leaked-prior-run signal, the same class
+  of check as the dirty-tree check next to it.
 
 ## Common Mistakes
 
@@ -466,13 +614,27 @@ When done debugging, tear everything down with:
   exercise the multi-fragment code path at all.
 - Calling Step 7 a pass because `/debug` returned 200. Rendering proves
   nothing about the deploy/ABI/signing chain; only the read-back
-  assertion in Step 7.6 does.
+  assertion (Step 7, sub-step 6) does.
 - Editing `nitro-devnode/*.sh`, contract source, or frontend hooks to
   make a failing step pass. This skill is READ-ONLY — report the failure
-  instead.
+  instead. (`data-testid` attributes added to drive Step 7 are the one
+  approved exception — additive only, never a logic/render change.)
 - Tearing down on FAIL/INCONCLUSIVE. Full teardown now runs only on
   PASS — on any other outcome, leave the live state running and print
   the escape hatch instead; see Step 8.
 - Printing the escape hatch with literal `$NEXTJS_PID`/`$CHAIN_PID`/
-  `$FRONTEND_PORT` text instead of the run's actual values. The reader
-  won't have those variables set in a fresh shell.
+  `$FRONTEND_PORT`/`$CHROME_PID` text instead of the run's actual values.
+  The reader won't have those variables set in a fresh shell.
+- Setting a React-controlled `<input>`'s value with plain
+  `input.value = x` in Step 7. React shadows the native setter, so the
+  component's own state never updates and the form submits empty — use
+  the native setter via `Object.getOwnPropertyDescriptor` plus a
+  dispatched `input` event (see Step 7, sub-step 5).
+- Assuming Step 7 must click a "Connect" button. For the local devnode
+  network the burner wallet auto-connects on page load; the script must
+  check for the already-connected state first (see Step 7, sub-step 4).
+- Reintroducing the `claude-in-chrome` MCP extension for Step 7, or
+  adding puppeteer/playwright/chrome-remote-interface/ws to make browser
+  automation easier. Pure CDP with zero new dependencies is the point —
+  every dependency here is inherited by every fork and by
+  `create-stylus`.

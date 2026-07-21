@@ -192,6 +192,28 @@ fi
 echo "OK: no leaked artifacts from a prior run"
 
 echo ""
+echo "=== Leaked run-state check ==="
+# Step 2/6/7 launch their processes (devnode, frontend, and on a FAIL,
+# Chrome) fully detached from the invoking shell/session, so they can
+# outlive it -- see launch-detached.mjs. .smoke-state.json is the durable
+# record of that. A leftover file here is the same class of problem as the
+# dirty-tree check above: a prior run's Step 8 never ran (or never got the
+# chance to). Surfacing it directly is more useful than waiting for the
+# symptom (a busy port) to show up further down.
+STATE_FILE=".claude/skills/smoke-test/.smoke-state.json"
+if [ -f "$STATE_FILE" ]; then
+  echo "DIRTY: a previous smoke-test run's state file is still present:"
+  cat "$STATE_FILE"
+  echo "This means a prior run's Step 8 teardown did not run (FAIL/"
+  echo "INCONCLUSIVE/crash) or was never followed up by hand. Run"
+  echo "'.claude/skills/smoke-test/teardown.sh' (no arguments needed -- it"
+  echo "reads this same file) before treating this run's results as"
+  echo "trustworthy."
+  exit 4
+fi
+echo "OK: no leaked run-state file from a prior run"
+
+echo ""
 echo "Preflight PASSED. Safe to proceed to Step 2 (start devnode)."
 echo "FRONTEND_PORT=${FRONTEND_PORT}"
 exit 0

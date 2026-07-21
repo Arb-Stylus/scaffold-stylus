@@ -21,14 +21,18 @@ export const PaginationButton = ({ currentPage, hasNextPage, setCurrentPage }: P
         className={`btn btn-sm ${prevButtonClass}`}
         disabled={isPrevButtonDisabled}
         onClick={() => setCurrentPage(currentPage - 1)}
+        data-testid="blockexplorer-prev-page"
       >
         <ArrowLeftIcon className="h-4 w-4" />
       </button>
-      <span className="self-center text-primary-content font-medium">Page {currentPage + 1}</span>
+      <span className="self-center text-primary-content font-medium" data-testid="blockexplorer-page-label">
+        Page {currentPage + 1}
+      </span>
       <button
         className={`btn btn-sm ${nextButtonClass}`}
         disabled={isNextButtonDisabled}
         onClick={() => setCurrentPage(currentPage + 1)}
+        data-testid="blockexplorer-next-page"
       >
         <ArrowRightIcon className="h-4 w-4" />
       </button>

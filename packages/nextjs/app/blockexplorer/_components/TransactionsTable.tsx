@@ -15,7 +15,7 @@ export const TransactionsTable = ({ blocks, transactionReceipts }: TransactionsT
         {!hasTransactions ? (
           <div className="p-8 text-center text-base-content/70">No transactions found on this page.</div>
         ) : (
-          <table className="table w-full md:table-md table-sm">
+          <table className="table w-full md:table-md table-sm" data-testid="blockexplorer-table">
             <thead>
               <tr className="rounded-xl bg-[#1B1B1B] text-white">
                 <th className="rounded-l-xl">Transaction Hash</th>
@@ -35,7 +35,7 @@ export const TransactionsTable = ({ blocks, transactionReceipts }: TransactionsT
                   const functionCalled = tx.input.substring(0, 10);
 
                   return (
-                    <tr key={tx.hash} className="hover">
+                    <tr key={tx.hash} className="hover" data-testid="blockexplorer-row">
                       <td className="w-1/12 md:py-4">
                         <TransactionHash hash={tx.hash} />
                       </td>
@@ -47,7 +47,9 @@ export const TransactionsTable = ({ blocks, transactionReceipts }: TransactionsT
                           </span>
                         )}
                       </td>
-                      <td className="w-1/12 md:py-4">{block.number?.toString()}</td>
+                      <td className="w-1/12 md:py-4" data-testid="blockexplorer-block-number">
+                        {block.number?.toString()}
+                      </td>
                       <td className="w-2/12 md:py-4">{timeMined}</td>
                       <td className="w-2/12 md:py-4">
                         <Address address={tx.from} size="sm" onlyEnsOrAddress />
