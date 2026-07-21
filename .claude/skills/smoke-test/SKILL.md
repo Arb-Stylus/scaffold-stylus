@@ -70,14 +70,36 @@ must still be reported, since a leaked devnode poisons the next run.
 Checks (in order): `node`, `yarn`, `docker` binary + daemon reachability
 (`docker info`), `cast` (Foundry), `cargo`, `cargo stylus`, the
 `SMOKE_TEST_CONFIRM` consent gate and the `packages/stylus/.env`
-deploy-credentials gate (see Step 1), ports 8547/3000 free, and that no
-artifact from a prior unclean run is already sitting in the working tree
+deploy-credentials gate (see Step 1), that the fixed RPC port 8547 is free
+(see "DO NOT make port 8547 dynamic" below), and that no artifact from a
+prior unclean run is already sitting in the working tree
 (`packages/nextjs/contracts/deployedContracts.ts`,
 `packages/stylus/deployments`, `packages/stylus/contracts/erc20-example`).
 
-- Exit 0 → proceed to Step 2.
-- Exit 1 (missing tool), 3 (port busy), or 4 (dirty tree from a leaked
-  prior run) → **(b) DID NOT RUN** for every downstream step; stop here.
+Port 3000 is arbitrary, not fixed, so a busy 3000 does not abort the run:
+preflight instead probes upward from 3000 (3000, 3001, ... capped at 20
+attempts) for the first free port, and prints it as `FRONTEND_PORT=<port>`
+on the last line of output when it exits 0. A busy 3000 is often a dev
+server leaked from a prior smoke-test run, so the probe does not skip
+silently — for every occupied port it names the holder's PID and full
+command (via `lsof`/`ps`, never killing it) before trying the next one, so
+a leak from this repo's own `next dev` stays visible instead of being
+routed around. The final chosen port is echoed prominently
+(`>>> FRONTEND_PORT=<port> <<<`) so it isn't buried in the rest of the
+preflight output. Capture the value and export it for the rest of the run:
+
+```bash
+export FRONTEND_PORT=<value printed by preflight.sh>
+```
+
+Every downstream step that needs the frontend port — Step 6's launch and
+readiness poll, Step 7's browser navigation — uses `$FRONTEND_PORT`, never
+a hardcoded `3000`. Report the chosen port in the run's final output.
+
+- Exit 0 → proceed to Step 2, using the printed `FRONTEND_PORT`.
+- Exit 1 (missing tool), 3 (RPC port 8547 busy), 4 (dirty tree from a
+  leaked prior run), or 6 (no free frontend port found in the probed
+  range) → **(b) DID NOT RUN** for every downstream step; stop here.
 - Exit 2 (consent gate closed) or 5 (deploy-credentials gate closed) →
   see Step 1; **(b) DID NOT RUN** for the whole run.
 
@@ -94,10 +116,11 @@ Explicit opt-in is required before this skill touches anything:
 export SMOKE_TEST_CONFIRM=1
 ```
 
-**Why a gate:** this skill binds host ports 8547 and 3000, runs a Docker
-container, deploys real (if throwaway) contracts, and drives a live
-browser session with a burner wallet. It must never fire as a silent side
-effect of another skill or an automated loop.
+**Why a gate:** this skill binds host port 8547 and a frontend port
+(probed from 3000 upward), runs a Docker container, deploys real (if
+throwaway) contracts, and drives a live browser session with a burner
+wallet. It must never fire as a silent side effect of another skill or an
+automated loop.
 
 - `SMOKE_TEST_CONFIRM` set → **(a)**, proceed.
 - Unset → **(b) DID NOT RUN — env absent.** Tell the caller to set it and
@@ -285,24 +308,35 @@ receipt status of 1 (no `execution reverted`).
 
 ## Step 6 — Start the frontend
 
+Launch the `next` binary directly rather than through `yarn`/`yarn start`
+(which is `yarn workspace @ss/nextjs dev` -> `next dev`, per the root and
+`packages/nextjs` `package.json` scripts). Going through `yarn` makes
+`$!` capture the `yarn` wrapper's PID, not the actual dev-server process,
+which is why Step 8's teardown depends on this. `next dev` itself listens
+for SIGINT/SIGTERM, forwards it to the child process it forks internally,
+and SIGKILLs that child on its own exit — so a single captured PID is
+sufficient to tear down cleanly:
+
 ```bash
-yarn start &
+PORT="$FRONTEND_PORT" packages/nextjs/node_modules/.bin/next dev packages/nextjs &
 NEXTJS_PID=$!
 ```
 
-Runs `next dev` (port 3000) via the `@ss/nextjs` workspace.
+Runs `next dev` on `$FRONTEND_PORT` (chosen in Step 0 — Next.js honours
+the `PORT` env var when no explicit `--port` is passed).
 
 Assertion — poll up to 90s (first compile can be slow):
 
 ```bash
 timeout 90 bash -c \
-  'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000)" = "200" ]; do sleep 2; done'
+  "until [ \"\$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${FRONTEND_PORT})\" = '200' ]; do sleep 2; done"
 ```
 
-- Port 3000 already bound, or the process exits immediately → **(b) DID
-  NOT RUN** if caused by environment (should have been caught in
-  preflight); **(c)** if `next dev` starts then crashes with a build/type
-  error.
+- `$FRONTEND_PORT` already bound (shouldn't happen — Step 0 just probed
+  it free, but something else could have grabbed it in the interim), or
+  the process exits immediately → **(b) DID NOT RUN** if caused by
+  environment; **(c)** if `next dev` starts then crashes with a
+  build/type error.
 - Responds 200 within 90s → **(a)**.
 
 ## Step 7 — Browser E2E (the whole chain, proven live)
@@ -317,7 +351,8 @@ if any UI element looks like it might spawn one (e.g. a "reset" or
 "clear" button), skip it — a triggered dialog freezes the automation and
 the session must then be unblocked by hand.
 
-1. Navigate to `http://localhost:3000/debug`.
+1. Navigate to `http://localhost:$FRONTEND_PORT/debug` (the port captured
+   from Step 0's preflight output — do not assume 3000).
 2. **Assert `your-contract` appears in the debug contract list with its
    read/write methods rendered** — not just that the page returned 200.
    A page that merely renders is not a pass; you must see the specific
@@ -355,9 +390,16 @@ run, and it will look like a port conflict in Step 0, not like "the last
 run left something running."
 
 ```bash
-# 1. Kill the Next.js dev server
+# 1. Kill the Next.js dev server — $NEXTJS_PID only. Never pattern-match
+# a process name (`pkill -f`, `killall`): that sweeps the whole machine
+# and can kill an unrelated project's dev server (this happened live with
+# a `next dev` for a different repo on the same port range). Because
+# Step 6 launches `next dev` directly instead of through `yarn`, this PID
+# is the real dev-server process, which forwards the signal to its own
+# forked child before exiting — so escalating on the same PID is enough.
 kill "$NEXTJS_PID" 2>/dev/null
-pkill -f "next dev" 2>/dev/null
+sleep 2
+kill -9 "$NEXTJS_PID" 2>/dev/null
 
 # 2. Tear down the devnode container
 docker rm -f nitro-dev
@@ -374,10 +416,14 @@ git checkout -- packages/nextjs/contracts/deployedContracts.ts
 # 6. Remove the gitignored deployment artifacts Step 4 wrote
 rm -rf packages/stylus/deployments
 
-# 7. Verify no orphaned processes or dirty tree remain
+# 7. Verify no orphaned processes or dirty tree remain FROM THIS RUN.
+# Check the specific PIDs this run captured, not a name pattern — a
+# `pgrep -f "next dev"` here would match any other project's dev server
+# left running on the machine and misreport this run's teardown as
+# failed.
 docker ps -a --filter name=nitro-dev --format '{{.Names}}'   # expect empty
-pgrep -f "next dev"                                          # expect no match
-pgrep -f "start-chain-with-cors.sh"                           # expect no match
+kill -0 "$NEXTJS_PID" 2>/dev/null && echo "LEAKED: NEXTJS_PID $NEXTJS_PID still alive"
+kill -0 "$CHAIN_PID" 2>/dev/null && echo "LEAKED: CHAIN_PID $CHAIN_PID still alive"
 git status --porcelain -- packages/nextjs/contracts/deployedContracts.ts \
   packages/stylus/deployments packages/stylus/contracts/erc20-example
                                                                # expect empty

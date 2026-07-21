@@ -8,14 +8,21 @@
 # source; it only verifies the environment is ready to attempt Step 0-8.
 #
 # Exit codes:
-#   0  - all checks passed, safe to proceed to Step 2 (start devnode)
+#   0  - all checks passed, safe to proceed to Step 2 (start devnode). On
+#        success this script's last line of output is `FRONTEND_PORT=<port>`
+#        — the caller must capture and export it for the rest of the run.
 #   1  - a required tool is missing
 #   2  - the consent gate (SMOKE_TEST_CONFIRM) is not set
 #   5  - the deploy-credentials gate: packages/stylus/.env is missing or has
 #        a blank/absent ACCOUNT_ADDRESS, RPC_URL, or PRIVATE_KEY for devnet
-#   3  - a required port (8547 or 3000) is already bound
+#   3  - the fixed RPC port (8547) is already bound. This one is NOT
+#        arbitrary (see SKILL.md "DO NOT make port 8547 dynamic") so it stays
+#        a hard failure.
 #   4  - the working tree already has a dirty deployedContracts.ts / deployments
 #        artifact, meaning a prior run leaked and was never torn down
+#   6  - no free frontend port found in the probed range (3000-3019); the
+#        frontend port is arbitrary so this is only hit if 20 consecutive
+#        ports are all bound
 
 set -u
 FAILED=0
@@ -65,8 +72,9 @@ echo ""
 echo "=== Step 1a: consent gate check ==="
 if [ -z "${SMOKE_TEST_CONFIRM:-}" ]; then
   echo "GATE CLOSED: SMOKE_TEST_CONFIRM is not set."
-  echo "This skill starts a Docker container bound to host ports 8547/3000,"
-  echo "deploys throwaway contracts, and drives a live browser session."
+  echo "This skill starts a Docker container bound to host port 8547 plus a"
+  echo "frontend dev-server port (probed from 3000), deploys throwaway"
+  echo "contracts, and drives a live browser session."
   echo "Set SMOKE_TEST_CONFIRM=1 to explicitly opt in, then re-run."
   echo "Report Step 1a (consent gate) as (b) DID NOT RUN — env absent."
   exit 2
@@ -120,23 +128,54 @@ fi
 echo "OK: ${ENV_FILE} has non-blank ACCOUNT_ADDRESS/RPC_URL/PRIVATE_KEY"
 
 echo ""
-echo "=== Port checks ==="
-for port in 8547 3000; do
-  if lsof -i ":${port}" -sTCP:LISTEN &>/dev/null; then
-    echo "BUSY: port ${port} is already bound — a leaked devnode/dev-server"
-    echo "from a prior smoke-test run is the most likely cause (check for an"
-    echo "orphaned 'nitro-dev' container or 'next dev' process before retrying)."
-    FAILED=3
-  else
-    echo "OK: port ${port} free"
-  fi
-done
+echo "=== RPC port check (8547, fixed — not arbitrary) ==="
+if lsof -i ":8547" -sTCP:LISTEN &>/dev/null; then
+  echo "BUSY: port 8547 is already bound — a leaked devnode from a prior"
+  echo "smoke-test run is the most likely cause (check for an orphaned"
+  echo "'nitro-dev' container before retrying)."
+  FAILED=3
+else
+  echo "OK: port 8547 free"
+fi
 
 if [ "$FAILED" -ne 0 ]; then
   echo ""
   echo "Preflight FAILED: report the blocked step as (b) DID NOT RUN — port busy."
   exit 3
 fi
+
+echo ""
+echo "=== Frontend port probe (3000+, arbitrary — first free port wins) ==="
+# The frontend port is not fixed like 8547 (see the RPC port check above),
+# so a busy 3000 is not a hard failure: probe upward for the first free
+# port instead of aborting. But a busy 3000 is often a dev server LEAKED
+# from a prior run of THIS skill (Step 8 teardown failed to kill it) —
+# silently sliding past it to 3001 would hide that signal and let leaks
+# pile up run after run. So for every occupied port we skip, name what
+# holds it (PID + full command) before moving on. We never kill it here —
+# only report it. A holder belonging to another project's dev server is
+# fine and expected; a holder that is this repo's own `next dev` is a
+# leak worth investigating.
+FRONTEND_PORT=""
+for offset in $(seq 0 19); do
+  candidate=$((3000 + offset))
+  holder_pid=$(lsof -nP -iTCP:"${candidate}" -sTCP:LISTEN -t 2>/dev/null | head -1)
+  if [ -z "$holder_pid" ]; then
+    FRONTEND_PORT="$candidate"
+    break
+  fi
+  holder_cmd=$(ps -p "$holder_pid" -o command= 2>/dev/null)
+  echo "port ${candidate} busy: PID ${holder_pid} ${holder_cmd}"
+done
+
+if [ -z "$FRONTEND_PORT" ]; then
+  echo "BUSY: no free port found in range 3000-3019 for the frontend."
+  echo "Report the blocked step as (b) DID NOT RUN — no free frontend port."
+  exit 6
+fi
+
+echo ""
+echo ">>> Chosen frontend port: FRONTEND_PORT=${FRONTEND_PORT} <<<"
 
 echo ""
 echo "=== Working tree cleanliness check ==="
@@ -154,4 +193,5 @@ echo "OK: no leaked artifacts from a prior run"
 
 echo ""
 echo "Preflight PASSED. Safe to proceed to Step 2 (start devnode)."
+echo "FRONTEND_PORT=${FRONTEND_PORT}"
 exit 0
