@@ -37,6 +37,7 @@ fi
 
 # Start Nitro dev node in the background
 echo "Starting Nitro dev node..."
+docker rm -f nitro-dev >/dev/null 2>&1 || true
 docker run --rm --name nitro-dev -p 8547:8547 "${TARGET_IMAGE}" --dev --http.addr 0.0.0.0 --http.api=net,web3,eth,debug &
 
 # Kill background processes when exiting

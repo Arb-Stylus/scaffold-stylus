@@ -7,4 +7,4 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
 ENV PATH="/root/.cargo/bin:${PATH}"
 RUN curl -L https://foundry.paradigm.xyz | bash && . ~/.bashrc && ~/.foundry/bin/foundryup
 ENV PATH="/root/.foundry/bin:${PATH}"
-RUN cargo install --force cargo-stylus
+RUN cargo install --force --locked cargo-stylus@0.10.2
