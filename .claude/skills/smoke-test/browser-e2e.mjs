@@ -89,6 +89,19 @@ fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
 // substring (never a full stack trace -- line numbers churn on every
 // dependency bump). Add an entry here, dated, with a one-line reason, once a
 // human has actually looked at a NEW issue and decided it's acceptable.
+//
+// Signature rule: match on something that identifies the CODEPATH (a calling
+// hook/component name, or an application-level error-message prefix), never
+// on a bare third-party hostname by itself. A shared host like a public RPC
+// or a demo API key can be hit by more than one unrelated feature; a bare-
+// host match silently absorbs every future codepath that happens to hit the
+// same host under one old, unrelated "accepted" reason, and a regression in
+// a brand-new feature would then read as KNOWN instead of NEW. Case in
+// point: an earlier version of this baseline matched bare "eth.merkle.io" /
+// the shared Alchemy demo key host, accepted as a price-fetch fallback --
+// then a completely unrelated ENS lookup (Address.tsx) started hitting the
+// exact same hosts and matched right through it, unnoticed, until the price
+// feature that "explained" the entry was deleted.
 const KNOWN_OVERLAY_ISSUES = [
   {
     match: "Encountered a script tag while rendering React component",
@@ -111,40 +124,6 @@ const KNOWN_OVERLAY_ISSUES = [
       "library, which logs this notice whenever it isn't built in production mode -- a dev- " +
       "only self-check with no production impact. Does not appear in the dev-overlay badge, " +
       "console warning only.",
-  },
-  {
-    match: "eth.merkle.io",
-    acceptedDate: "2026-07-21",
-    reason:
-      "Third-party: fetchPriceFromUniswap.ts's viem client falls back to the public mainnet " +
-      "RPC eth.merkle.io once the Alchemy demo key below also fails, and that endpoint " +
-      "rejects the browser's cross-origin eth_call with a CORS preflight failure. Caught in " +
-      "code, falls back to a price of 0 -- no crash, console/network noise only, unrelated to " +
-      "the local devnode chain this skill actually drives. Confirmed pre-existing on " +
-      "origin/main (identical fetchPriceFromUniswap.ts); not caused by any change on this " +
-      "branch.",
-  },
-  {
-    match: "eth-mainnet.g.alchemy.com/v2/oKxs-03sij",
-    acceptedDate: "2026-07-21",
-    reason:
-      "Third-party: `oKxs-03sij-U_N0iOlrSsZFr29-IqbuF` is scaffold-eth-2's long-standing " +
-      "shared public demo Alchemy key (DEFAULT_ALCHEMY_API_KEY in scaffold.config.ts), used " +
-      "when no NEXT_PUBLIC_ALCHEMY_API_KEY is configured. That shared demo endpoint now " +
-      "rejects browser cross-origin calls with a CORS failure; the code falls back further " +
-      "to eth.merkle.io (see the entry above) and ultimately to a price of 0. Confirmed " +
-      "pre-existing on origin/main (identical scaffold.config.ts default key); not caused by " +
-      "any change on this branch.",
-  },
-  {
-    match: "useNativeCurrencyPrice - Error fetching",
-    acceptedDate: "2026-07-21",
-    reason:
-      "Same root cause as the two eth.merkle.io/Alchemy CORS entries above -- this is the " +
-      "application-level console.error once fetchPriceFromUniswap.ts's retries are fully " +
-      "exhausted. Timing-dependent: it only fires once viem gives up, which can land after " +
-      "this run's capture window closes, so it will not appear on every run -- that's " +
-      "expected, not a sign the baseline is stale.",
   },
 ];
 
@@ -779,6 +758,22 @@ async function main() {
   const explorerScreenshot = await screenshot(cdp, "blockexplorer-pagination");
   log(`Screenshot: ${explorerScreenshot}`);
 
+  // 8. Homepage -- console/overlay coverage only, no new hard assertion
+  // beyond "it rendered". The burner wallet is already connected by this
+  // point (step 4), so the homepage's <Address address={connectedAddress} />
+  // renders for real here, unlike /debug and /blockexplorer which never
+  // show it -- this is the page where the ENS name/avatar lookups in
+  // Address.tsx actually fire, and the whole reason that codepath went
+  // unseen by this script before.
+  await navigateAndWaitForLoad(cdp, `${FRONTEND_BASE}/`);
+  await waitFor(cdp, `document.body.textContent.includes("Scaffold-Stylus")`, {
+    timeoutMs: 30000,
+    description: "homepage rendered",
+  });
+  record("homepage-rendered", "PASS", "homepage loaded, console/overlay coverage collected");
+  const homepageScreenshot = await screenshot(cdp, "homepage");
+  log(`Screenshot: ${homepageScreenshot}`);
+
   // Dev-overlay/console advisory: best-effort DOM read, after the full flow
   // has run so the overlay has had every chance to have picked something up.
   // Failure here is caught, not thrown -- an advisory that can crash Step 7
@@ -797,7 +792,7 @@ async function main() {
   unsetState("chromeDebugPort");
   unsetState("chromeUserDataDir");
 
-  return { debugScreenshot, explorerScreenshot };
+  return { debugScreenshot, explorerScreenshot, homepageScreenshot };
 }
 
 async function killChromeGroup(pid) {
@@ -817,11 +812,11 @@ async function killChromeGroup(pid) {
 let chromeHandleForFailure = null;
 
 main()
-  .then(({ debugScreenshot, explorerScreenshot }) => {
+  .then(({ debugScreenshot, explorerScreenshot, homepageScreenshot }) => {
     console.log("");
     console.log("=== Step 7 results ===");
     for (const r of results) console.log(`${r.status}: ${r.name}${r.detail ? ` (${r.detail})` : ""}`);
-    console.log(`Screenshots: ${debugScreenshot}, ${explorerScreenshot}`);
+    console.log(`Screenshots: ${debugScreenshot}, ${explorerScreenshot}, ${homepageScreenshot}`);
     printDevOverlayAdvisory();
     console.log("RESULT: PASS");
     process.exit(0);

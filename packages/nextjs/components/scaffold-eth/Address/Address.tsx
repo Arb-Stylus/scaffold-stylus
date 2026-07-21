@@ -7,7 +7,7 @@ import { normalize } from "viem/ens";
 import { useEnsAvatar, useEnsName } from "wagmi";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
-import { getBlockExplorerAddressLink } from "~~/utils/scaffold-stylus";
+import { arbitrumNitro, getBlockExplorerAddressLink } from "~~/utils/scaffold-stylus";
 
 const textSizeMap = {
   "3xs": "text-[10px]",
@@ -85,19 +85,22 @@ export const Address = ({
   const checkSumAddress = address ? getAddress(address) : undefined;
 
   const { targetNetwork } = useTargetNetwork();
+  // ENS only exists on mainnet; resolving it against a local/dev chain just spends the
+  // request against the public mainnet RPC and fails, so skip it there.
+  const isLocalNetwork = targetNetwork.id === arbitrumNitro.id;
 
   const { data: ens, isLoading: isEnsNameLoading } = useEnsName({
     address: checkSumAddress,
     chainId: 1,
     query: {
-      enabled: isAddress(checkSumAddress ?? ""),
+      enabled: isAddress(checkSumAddress ?? "") && !isLocalNetwork,
     },
   });
   const { data: ensAvatar } = useEnsAvatar({
     name: ens ? normalize(ens) : undefined,
     chainId: 1,
     query: {
-      enabled: Boolean(ens),
+      enabled: Boolean(ens) && !isLocalNetwork,
       gcTime: 30_000,
     },
   });

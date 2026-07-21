@@ -7,10 +7,17 @@ import { arbitrumNitro, getAlchemyHttpUrl } from "~~/utils/scaffold-stylus";
 
 const { targetNetworks } = scaffoldConfig;
 
-// We always want to have mainnet enabled (ENS resolution, ETH price, etc). But only once.
-export const enabledChains = targetNetworks.find((network: Chain) => network.id === 1)
-  ? targetNetworks
-  : ([...targetNetworks, mainnet] as const);
+// We want mainnet enabled for ENS resolution, but only when a real network is actually in
+// play. If every target network is the local devnode, adding mainnet here would make wagmi
+// (and RainbowKit's own internal ENS lookups, which key off this same chain list) treat
+// mainnet as configured and start firing ENS requests against the public internet from a
+// pure local-dev session -- see Address.tsx's isLocalNetwork gate for the other half of this.
+const isLocalOnlyConfig = targetNetworks.every((network: Chain) => network.id === arbitrumNitro.id);
+
+export const enabledChains =
+  targetNetworks.find((network: Chain) => network.id === 1) || isLocalOnlyConfig
+    ? targetNetworks
+    : ([...targetNetworks, mainnet] as const);
 
 export const wagmiConfig = createConfig({
   chains: enabledChains,
