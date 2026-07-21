@@ -8,9 +8,11 @@
 # source; it only verifies the environment is ready to attempt Step 0-8.
 #
 # Exit codes:
-#   0  - all checks passed, safe to proceed to Step 1 (env gate)
+#   0  - all checks passed, safe to proceed to Step 2 (start devnode)
 #   1  - a required tool is missing
-#   2  - the env gate (SMOKE_TEST_CONFIRM) is not set
+#   2  - the consent gate (SMOKE_TEST_CONFIRM) is not set
+#   5  - the deploy-credentials gate: packages/stylus/.env is missing or has
+#        a blank/absent ACCOUNT_ADDRESS, RPC_URL, or PRIVATE_KEY for devnet
 #   3  - a required port (8547 or 3000) is already bound
 #   4  - the working tree already has a dirty deployedContracts.ts / deployments
 #        artifact, meaning a prior run leaked and was never torn down
@@ -60,16 +62,62 @@ fi
 echo "OK: docker daemon reachable"
 
 echo ""
-echo "=== Env gate check ==="
+echo "=== Step 1a: consent gate check ==="
 if [ -z "${SMOKE_TEST_CONFIRM:-}" ]; then
   echo "GATE CLOSED: SMOKE_TEST_CONFIRM is not set."
   echo "This skill starts a Docker container bound to host ports 8547/3000,"
   echo "deploys throwaway contracts, and drives a live browser session."
   echo "Set SMOKE_TEST_CONFIRM=1 to explicitly opt in, then re-run."
-  echo "Report Step 1 (env gate) as (b) DID NOT RUN — env absent."
+  echo "Report Step 1a (consent gate) as (b) DID NOT RUN — env absent."
   exit 2
 fi
 echo "OK: SMOKE_TEST_CONFIRM=${SMOKE_TEST_CONFIRM}"
+
+echo ""
+echo "=== Step 1b: deploy-credentials gate check (packages/stylus/.env) ==="
+# 'yarn deploy' (Step 4) reads devnet ACCOUNT_ADDRESS/RPC_URL/PRIVATE_KEY
+# from this file. packages/stylus/.env.example ships the whole devnet
+# block commented out, so a fresh clone has none of these set. Checked
+# here, before Step 2 starts the devnode, so we don't bind ports and boot
+# docker only to have 'yarn deploy' die on a missing file afterward.
+#
+# This check never prints the file's contents — only which of the three
+# expected key names are present and non-blank — because the same file
+# may also hold real sepolia/mainnet secrets in other (commented) blocks.
+ENV_FILE="packages/stylus/.env"
+env_key_present() {
+  [ -f "$ENV_FILE" ] && grep -Eq "^${1}=[^[:space:]]" "$ENV_FILE"
+}
+
+MISSING_KEYS=""
+for key in ACCOUNT_ADDRESS RPC_URL PRIVATE_KEY; do
+  if ! env_key_present "$key"; then
+    MISSING_KEYS="$MISSING_KEYS $key"
+  fi
+done
+
+if [ -n "$MISSING_KEYS" ]; then
+  echo "GATE CLOSED: ${ENV_FILE} is missing or blank for:${MISSING_KEYS}"
+  echo ""
+  echo "This skill will NOT create or edit ${ENV_FILE} for you, and will"
+  echo "NOT invent or guess values. Paste this block into ${ENV_FILE}"
+  echo "(create the file if it doesn't exist) — these are the"
+  echo "nitro-devnode's own well-known prefunded dev values, hardcoded in"
+  echo "plaintext at nitro-devnode/run-dev-node.sh line 7, not a secret:"
+  echo ""
+  cat <<'BLOCK'
+DEPLOYMENT_DIR=deployments
+
+## devnet
+ACCOUNT_ADDRESS=0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E
+RPC_URL=http://127.0.0.1:8547
+PRIVATE_KEY=0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
+BLOCK
+  echo ""
+  echo "Report Step 1b (deploy-credentials gate) as (b) DID NOT RUN — env absent."
+  exit 5
+fi
+echo "OK: ${ENV_FILE} has non-blank ACCOUNT_ADDRESS/RPC_URL/PRIVATE_KEY"
 
 echo ""
 echo "=== Port checks ==="

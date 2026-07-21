@@ -69,18 +69,24 @@ must still be reported, since a leaked devnode poisons the next run.
 
 Checks (in order): `node`, `yarn`, `docker` binary + daemon reachability
 (`docker info`), `cast` (Foundry), `cargo`, `cargo stylus`, the
-`SMOKE_TEST_CONFIRM` env gate (see Step 1), ports 8547/3000 free, and that
-no artifact from a prior unclean run is already sitting in the working
-tree (`packages/nextjs/contracts/deployedContracts.ts`,
+`SMOKE_TEST_CONFIRM` consent gate and the `packages/stylus/.env`
+deploy-credentials gate (see Step 1), ports 8547/3000 free, and that no
+artifact from a prior unclean run is already sitting in the working tree
+(`packages/nextjs/contracts/deployedContracts.ts`,
 `packages/stylus/deployments`, `packages/stylus/contracts/erc20-example`).
 
 - Exit 0 → proceed to Step 2.
-- Exit 1 (missing tool) or 3 (port busy) or 4 (dirty tree from a leaked
+- Exit 1 (missing tool), 3 (port busy), or 4 (dirty tree from a leaked
   prior run) → **(b) DID NOT RUN** for every downstream step; stop here.
-- Exit 2 (env gate closed) → see Step 1; **(b) DID NOT RUN** for the whole
-  run.
+- Exit 2 (consent gate closed) or 5 (deploy-credentials gate closed) →
+  see Step 1; **(b) DID NOT RUN** for the whole run.
 
-## Step 1 — Env Gate
+## Step 1 — Gates (two, both required)
+
+Two distinct, independent gates must both pass before Step 2 starts the
+devnode. Neither is optional and neither substitutes for the other.
+
+### Step 1a — Consent gate
 
 Explicit opt-in is required before this skill touches anything:
 
@@ -96,6 +102,44 @@ effect of another skill or an automated loop.
 - `SMOKE_TEST_CONFIRM` set → **(a)**, proceed.
 - Unset → **(b) DID NOT RUN — env absent.** Tell the caller to set it and
   stop; do not assume consent.
+
+### Step 1b — Deploy-credentials gate
+
+`yarn deploy` (Step 4) reads its devnet `ACCOUNT_ADDRESS` / `RPC_URL` /
+`PRIVATE_KEY` from `packages/stylus/.env`. That file does not exist in a
+fresh clone, and `packages/stylus/.env.example` ships its entire `##
+devnet` block commented out (only `DEPLOYMENT_DIR=` is uncommented, and
+it's blank). Without this gate, Step 4 dies on a missing/blank value
+*after* Step 2 has already bound ports and started Docker — check this
+**before** Step 2, not after.
+
+`preflight.sh` checks that `packages/stylus/.env` exists and has
+non-blank, uncommented `ACCOUNT_ADDRESS=`, `RPC_URL=`, and `PRIVATE_KEY=`
+lines. It never reads the rest of the file's contents back to the
+terminal (that file may also hold real sepolia/mainnet secrets in other
+blocks) and it never creates or edits the file itself.
+
+- All three devnet keys present and non-blank → **(a)**, proceed.
+- File missing, or any of the three keys missing/blank → **(b) DID NOT
+  RUN — env absent.** Halt and ask a human to create/edit
+  `packages/stylus/.env` with this exact block — these are the
+  nitro-devnode's own well-known prefunded dev values (the private key is
+  hardcoded in plaintext at `nitro-devnode/run-dev-node.sh` line 7), not a
+  secret to invent or protect:
+
+  ```
+  DEPLOYMENT_DIR=deployments
+
+  ## devnet
+  ACCOUNT_ADDRESS=0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E
+  RPC_URL=http://127.0.0.1:8547
+  PRIVATE_KEY=0xb6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
+  ```
+
+  Never auto-write this block into `.env` on the human's behalf, never
+  invent or guess different values, and never echo back any *other*
+  content already in the file (it may contain real secrets for other
+  networks).
 
 ## Step 2 — Start the devnode
 
@@ -212,6 +256,17 @@ cd -
 
 (The private key is the nitro-devnode's well-known prefunded dev account,
 the same one `nitro-devnode/start-chain-with-cors.sh` uses — not a secret.)
+
+**Use `cargo stylus check` to measure/validate the contract. Do NOT use
+plain `cargo build`.** `cargo build` fails on the host target for this
+contract (and for `your-contract`) because of a known
+`openzeppelin-stylus 0.3.0` / `stylus-sdk 0.9.0` VM mismatch — it is
+**expected and pre-existing**, not a regression, and not caused by any
+toolchain upgrade. A rustc 1.89 -> 1.91 bump is in flight on another
+branch right now; if you run `cargo build` here and hit this failure, do
+not attribute it to that upgrade and do not report it as a bug to fix —
+`cargo stylus check` (which builds for `wasm32-unknown-unknown`, not the
+host) is the correct command and does not hit this mismatch.
 
 Assertion: `cargo stylus check` reports a WASM size over 24576 bytes /
 2+ activation fragments, and `cargo stylus deploy` completes with a
