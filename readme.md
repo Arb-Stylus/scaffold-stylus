@@ -53,7 +53,7 @@ Check the [Rust installation guide](https://www.rust-lang.org/tools/install) for
 
 Then install the Stylus CLI tools.
 
-> **⚠️ WARNING:** This project requires `cargo-stylus` version `0.10.2` and `rustc` version `1.89` (as pinned in `packages/stylus/contracts/rust-toolchain.toml`). Do NOT use `stylusup` to install Stylus tools, as it installs the latest versions which are incompatible with these pinned requirements.
+> **⚠️ WARNING:** This project requires `cargo-stylus` version `0.10.8` and `rustc` version `1.91.0` (as pinned in `packages/stylus/contracts/rust-toolchain.toml`). Do NOT use `stylusup` to install Stylus tools, as it installs the latest versions which are incompatible with these pinned requirements.
 
 ```bash
 cargo install --force --locked cargo-stylus@0.10.8
