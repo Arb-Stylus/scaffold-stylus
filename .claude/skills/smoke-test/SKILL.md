@@ -184,9 +184,9 @@ node .claude/skills/smoke-test/state.mjs set chainPid "$CHAIN_PID"
 Launched via `launch-detached.mjs`, not a plain `cmd &`: the devnode
 process is detached from this shell/session (Node's `spawn({detached:
 true})` calls `setsid(2)` directly, so it survives the session that
-started it — e.g. a crew session being closed — the same way a leaked
-container used to outlive a killed shell but the wrapper script around it
-didn't). Its PID is recorded in the shared state file
+started it — e.g. the invoking shell or session being closed — the same way
+a leaked container used to outlive a killed shell but the wrapper script
+around it didn't). Its PID is recorded in the shared state file
 (`.claude/skills/smoke-test/.smoke-state.json`, via `state.mjs`) rather
 than only living in this shell's `$CHAIN_PID` variable, so Step 8's
 teardown (and a human's escape hatch, on FAIL) can find and kill it even
@@ -592,9 +592,9 @@ it reads .smoke-state.json):
 Before this fix, Steps 2/6 launched the devnode and frontend as plain
 `cmd &` background jobs. That PID lived only in a shell variable, and the
 process itself stayed in the same process group as the shell that
-started it. Both of those broke the FAIL-path escape hatch above: a
-crew/session ending sends its terminating signal to that whole process
-group, killing the "preserved" devnode and frontend along with it, so
+started it. Both of those broke the FAIL-path escape hatch above: the
+invoking shell or session ending sends its terminating signal to that whole
+process group, killing the "preserved" devnode and frontend along with it, so
 the escape hatch printed PIDs that were already dead by the time a human
 read them — teardown-on-FAIL was theatre, not a real safety net.
 

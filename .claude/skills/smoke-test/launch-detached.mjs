@@ -4,9 +4,9 @@
 // Launch a command detached from the invoking shell/session, so it survives
 // that session exiting. Without this, Step 2 (devnode) and Step 6 (frontend)
 // were plain `cmd &` background jobs that die with the process group of
-// whatever session started them -- e.g. a crew session being closed -- which
-// made Step 8's FAIL-path escape hatch print PIDs that were already dead by
-// the time a human read them.
+// whatever session started them -- e.g. the invoking shell or session being
+// closed -- which made Step 8's FAIL-path escape hatch print PIDs that were
+// already dead by the time a human read them.
 //
 // Uses Node's `detached` spawn option rather than shelling out to the
 // `setsid` CLI binary: libuv calls setsid(2) directly on POSIX platforms

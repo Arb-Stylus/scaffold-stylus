@@ -120,5 +120,5 @@ not something folded into a finding or left as an implicit omission; it must be 
 
 1. Report the verdict, security findings first.
 2. Report what did **not** run (the `notRunOrUnchecked` section) as clearly as what did.
-3. For anything actionable, delegate to a crew — this skill does not apply changes.
+3. For anything actionable, delegate the change or apply it as a separate task — this skill does not apply changes.
 4. Confirm the main project is green **before** moving to phase 2 (siblings).
