@@ -23,8 +23,11 @@ contracts, and drives a browser — it MUST NOT edit `.rs`, `.ts`, `.tsx`,
 `.toml`, or any other tracked source file to make a failing step pass.
 If a step fails, report it as failed; do not "fix" it by editing code.
 The only tracked files this skill's own steps are permitted to touch are
-build artifacts it must restore in Step 8 (`deployedContracts.ts`) — see
-that step for the exact restore command.
+build artifacts it restores on a PASS in Step 8 (`deployedContracts.ts`)
+— see that step for the exact restore command. On FAIL/INCONCLUSIVE, Step
+8 deliberately leaves this file modified — it is debugging evidence, not
+a READ-ONLY violation; it gets restored the next time teardown actually
+runs.
 
 ## Ordering Contract
 
@@ -57,9 +60,12 @@ never a blend:
 - **FAIL** — any step is (c).
 
 Neither INCONCLUSIVE nor FAIL opens the Phase 2 (`sibling-sync`) gate.
-Step 8 (teardown) always runs regardless of verdict and is not itself
-part of the PASS/INCONCLUSIVE/FAIL calculation — but a teardown failure
-must still be reported, since a leaked devnode poisons the next run.
+Step 8 (teardown) is not itself part of the PASS/INCONCLUSIVE/FAIL
+calculation, but whether it *runs at all* now depends on that verdict —
+see Step 8: full teardown only happens on PASS; on FAIL, INCONCLUSIVE, or
+a crash partway through, the live state is deliberately left running
+instead. When teardown does run, a teardown failure must still be
+reported, since a leaked devnode poisons the next run.
 
 ## Step 0 — Preflight
 
@@ -265,8 +271,9 @@ rm -rf smoke-fixture
 `packages/stylus/contracts/` is a Cargo workspace with `members = ["*"]`
 (see `packages/stylus/contracts/Cargo.toml`), so the copied crate joins
 the workspace automatically — no `Cargo.toml` edit needed. This directory
-is skill-owned scratch, not repo source; it is deleted in Step 8 and must
-never be `git add`ed.
+is skill-owned scratch, not repo source; it must never be `git add`ed. On
+PASS it is deleted in Step 8; on FAIL/INCONCLUSIVE it is deliberately left
+in place as debugging evidence until `teardown.sh` is run by hand.
 
 ```bash
 cd packages/stylus/contracts/erc20-example
@@ -382,62 +389,69 @@ the session must then be unblocked by hand.
   failed**, with the mismatch and any console/network errors attached.
 - All of steps 2–6 hold and the screenshot is captured → **(a)**.
 
-## Step 8 — Teardown (ALWAYS, including on failure)
+## Step 8 — Teardown (conditional on verdict)
 
-Run this regardless of the verdict from Steps 1–7 — on PASS, FAIL, or a
-crash partway through. A leaked devnode or dev server poisons the *next*
-run, and it will look like a port conflict in Step 0, not like "the last
-run left something running."
+Whether this step tears anything down now depends on the outcome of
+Steps 1–7:
+
+- **Verdict is PASS** → tear down fully, exactly as before.
+- **Verdict is FAIL, INCONCLUSIVE, or the run crashed partway through
+  before reaching a verdict** → do **NOT** tear down. A live failure
+  state is the only thing you can actually debug — tearing it down
+  forces a full re-run of devnode + deploy + frontend just to get back
+  to the moment of failure. Leave the devnode container and the dev
+  server running and leave the artifacts in place; print the escape
+  hatch instead (below).
+
+The actual teardown logic lives in a standalone, idempotent script —
+`.claude/skills/smoke-test/teardown.sh` — precisely so that "the exact
+teardown command" quoted in the escape hatch is a real, single,
+copy-pasteable command and not a list of steps to retype. It is safe to
+run twice and safe to run when nothing is alive: killing an already-dead
+PID and removing an already-absent container both no-op quietly, and
+nothing in the script is allowed to start erroring on a repeat run.
+
+### On PASS
 
 ```bash
-# 1. Kill the Next.js dev server — $NEXTJS_PID only. Never pattern-match
-# a process name (`pkill -f`, `killall`): that sweeps the whole machine
-# and can kill an unrelated project's dev server (this happened live with
-# a `next dev` for a different repo on the same port range). Because
-# Step 6 launches `next dev` directly instead of through `yarn`, this PID
-# is the real dev-server process, which forwards the signal to its own
-# forked child before exiting — so escalating on the same PID is enough.
-kill "$NEXTJS_PID" 2>/dev/null
-sleep 2
-kill -9 "$NEXTJS_PID" 2>/dev/null
-
-# 2. Tear down the devnode container
-docker rm -f nitro-dev
-
-# 3. Kill the backgrounded chain script if still around
-kill "$CHAIN_PID" 2>/dev/null
-
-# 4. Remove the Step 5 scratch fixture — never let it reach git status
-rm -rf packages/stylus/contracts/erc20-example
-
-# 5. Restore the tracked file Step 4 legitimately modified
-git checkout -- packages/nextjs/contracts/deployedContracts.ts
-
-# 6. Remove the gitignored deployment artifacts Step 4 wrote
-rm -rf packages/stylus/deployments
-
-# 7. Verify no orphaned processes or dirty tree remain FROM THIS RUN.
-# Check the specific PIDs this run captured, not a name pattern — a
-# `pgrep -f "next dev"` here would match any other project's dev server
-# left running on the machine and misreport this run's teardown as
-# failed.
-docker ps -a --filter name=nitro-dev --format '{{.Names}}'   # expect empty
-kill -0 "$NEXTJS_PID" 2>/dev/null && echo "LEAKED: NEXTJS_PID $NEXTJS_PID still alive"
-kill -0 "$CHAIN_PID" 2>/dev/null && echo "LEAKED: CHAIN_PID $CHAIN_PID still alive"
-git status --porcelain -- packages/nextjs/contracts/deployedContracts.ts \
-  packages/stylus/deployments packages/stylus/contracts/erc20-example
-                                                               # expect empty
+NEXTJS_PID="$NEXTJS_PID" CHAIN_PID="$CHAIN_PID" .claude/skills/smoke-test/teardown.sh
 ```
 
-- If any verification in step 7 above is non-empty, teardown itself
-  **failed** — report this explicitly (it is not covered by the PASS/
-  INCONCLUSIVE/FAIL verdict, but it must be surfaced, since it will
-  cause the *next* run's Step 0 preflight to fail with a misleading
-  "port busy" or "dirty tree" message).
+- If the script's own step-7 verification prints any `LEAKED:` line or
+  non-empty `git status`, teardown itself **failed** — report this
+  explicitly (it is not covered by the PASS/INCONCLUSIVE/FAIL verdict,
+  but it must be surfaced, since it will cause the *next* run's Step 0
+  preflight to fail with a misleading "port busy" or "dirty tree"
+  message).
 - `deployedContracts.ts` is the one tracked file this skill is allowed to
-  touch mid-run (Step 4) — teardown's `git checkout --` on it is what
-  keeps the READ-ONLY contract's spirit intact: the working tree must be
-  bit-for-bit unchanged by the time this skill exits.
+  touch mid-run (Step 4) — the script's `git checkout --` on it is what
+  keeps the READ-ONLY contract's spirit intact on a PASS: the working
+  tree must be bit-for-bit unchanged by the time this skill exits.
+
+### On FAIL / INCONCLUSIVE / crash
+
+Do not call `teardown.sh`. Instead print an escape hatch with this run's
+actual literal values substituted in (not `$VAR` references — the reader
+will use these in a fresh shell where the variables aren't set):
+
+```
+=== Smoke test did not pass — live state left running for debugging ===
+Frontend:    http://localhost:<FRONTEND_PORT>/debug
+NEXTJS_PID:  <NEXTJS_PID>
+CHAIN_PID:   <CHAIN_PID>
+Container:   nitro-dev
+
+The working tree is left DIRTY on purpose: packages/nextjs/contracts/
+deployedContracts.ts stays modified and packages/stylus/deployments
+stays present — they are evidence of this run's deploy. The next
+preflight run will hit exit 4 (dirty tree) until this is cleaned up;
+that is the intended loud signal that a prior run failed and was never
+torn down, not a mysterious bug. Do not treat exit 4 as "something is
+broken" without first checking whether it's this.
+
+When done debugging, tear everything down with:
+  NEXTJS_PID=<NEXTJS_PID> CHAIN_PID=<CHAIN_PID> .claude/skills/smoke-test/teardown.sh
+```
 
 ## Common Mistakes
 
@@ -456,4 +470,9 @@ git status --porcelain -- packages/nextjs/contracts/deployedContracts.ts \
 - Editing `nitro-devnode/*.sh`, contract source, or frontend hooks to
   make a failing step pass. This skill is READ-ONLY — report the failure
   instead.
-- Running Step 8 only on success. Teardown is unconditional.
+- Tearing down on FAIL/INCONCLUSIVE. Full teardown now runs only on
+  PASS — on any other outcome, leave the live state running and print
+  the escape hatch instead; see Step 8.
+- Printing the escape hatch with literal `$NEXTJS_PID`/`$CHAIN_PID`/
+  `$FRONTEND_PORT` text instead of the run's actual values. The reader
+  won't have those variables set in a fresh shell.
