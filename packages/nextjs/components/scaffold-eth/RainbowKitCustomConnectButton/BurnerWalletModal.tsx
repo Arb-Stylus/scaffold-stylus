@@ -41,6 +41,7 @@ export const BurnerWalletModal = ({ isOpen, onClose, onSelectAccount }: BurnerWa
             <button
               key={account.address}
               onClick={() => handleAccountSelect(account.privateKey, account.address)}
+              data-testid="burner-account-option"
               className={`w-full p-3 text-left rounded-lg border ${
                 isDarkMode ? "border-black hover:bg-black" : "gradient-border-light-hover hover:text-white"
               } transition-colors`}

@@ -14,3 +14,13 @@ node_modules
 !.vscode/settings.json
 .idea
 .vercel
+
+# Agent tooling and artifacts
+.claude/*
+!.claude/workflows/
+!.claude/skills/
+.worktrees/
+
+# smoke-test skill run state (PIDs/ports for detached processes) -- never
+# tracked, always specific to one still-running or last-crashed run
+.claude/skills/smoke-test/.smoke-state.json
