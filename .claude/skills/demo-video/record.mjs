@@ -243,7 +243,16 @@ function assembleVideo(frames, outPath, endTimestamp) {
     const cur = frames[i];
     const next = frames[i + 1];
     const nextTs = next ? next.timestamp : endTimestamp;
-    const duration = Math.max(nextTs - cur.timestamp, 0.05);
+    // MEASURED (2026-07-22): a 50ms floor here inflated a real 11.1s run to
+    // a 27s video (2.4x) -- most of the 456 captured frames arrived faster
+    // than 50ms apart (real UI repaints during the connect/switch/write
+    // flow), so flooring every one of those sub-50ms gaps to 50ms compounded
+    // across hundreds of frames into a video whose duration had nothing to
+    // do with the actual run. The floor only needs to be positive enough for
+    // ffmpeg's concat demuxer to accept it, not "watchable per frame" --
+    // 1ms preserves real timing; ffmpeg's own frame rate/codec handles
+    // very-short-duration entries fine.
+    const duration = Math.max(nextTs - cur.timestamp, 0.001);
     lines.push(`file '${cur.file}'`);
     lines.push(`duration ${duration.toFixed(3)}`);
   }
