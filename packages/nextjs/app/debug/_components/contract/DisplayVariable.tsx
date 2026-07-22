@@ -60,7 +60,7 @@ export const DisplayVariable = ({
   }, [error]);
 
   return (
-    <div className="space-y-1 pb-2">
+    <div className="space-y-1 pb-2" data-testid={`display-variable-${abiFunction.name}`}>
       <div className="flex items-center">
         <h3
           className="font-medium text-lg mb-0 break-all"
@@ -88,6 +88,7 @@ export const DisplayVariable = ({
             style={{
               color: isDarkMode ? "white" : "black",
             }}
+            data-testid="display-variable-value"
           >
             {displayTxResult(result)}
           </div>
