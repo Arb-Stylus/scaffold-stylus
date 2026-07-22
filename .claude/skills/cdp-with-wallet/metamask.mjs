@@ -45,6 +45,15 @@
 
 import { CDP, evaluate, EnvironmentError } from "./launch.mjs";
 
+// Distinct from EnvironmentError: this means CDP/Chrome/MetaMask all worked
+// correctly and the password itself was rejected -- a Keychain/vault
+// mismatch, not a script bug. preflight.mjs's Keychain check matches on
+// this class specifically (not on the error TEXT, which is locale-specific
+// -- MEASURED: this profile's MetaMask renders in Vietnamese, "Mật khẩu
+// không chính xác. Vui lòng thử lại.") so the check works regardless of the
+// browser's UI language.
+export class IncorrectPasswordError extends Error {}
+
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // ---------------------------------------------------------------------------
@@ -85,6 +94,30 @@ async function attach(target) {
 // Vietnamese, e.g. "Tạo ví mới" / "Tôi đã có ví" on the onboarding screen, so
 // any English text match would silently never fire there) over role/text
 // matching, which is kept only as a last-resort fallback.
+// MEASURED (2026-07-22): MetaMask 13.35.1.0 runs under LavaMoat "scuttling",
+// which throws `Error: LavaMoat - property "HTMLInputElement" of globalThis
+// is inaccessible under scuttling mode` the moment page JS touches a global
+// constructor's prototype (the usual React-controlled-input trick of
+// grabbing the native value setter off HTMLInputElement.prototype to bypass
+// React's own setter). That rules out setting .value via JS entirely on
+// this extension. The working alternative: focus the element with a plain
+// instance method call (`el.focus()` -- not a global lookup, LavaMoat
+// allows it), then use CDP's own `Input.insertText`, which inserts text at
+// the browser level as if typed, never touching page-global objects at all.
+async function fillInput(cdp, selector, text) {
+  const focused = await evaluate(
+    cdp,
+    `(() => {
+      const el = document.querySelector(${JSON.stringify(selector)});
+      if (!el) return "NOT_FOUND";
+      el.focus();
+      return document.activeElement === el ? "FOCUSED" : "FOCUS_FAILED";
+    })()`,
+  );
+  if (focused !== "FOCUSED") throw new EnvironmentError(`Could not focus ${selector} (${focused})`);
+  await cdp.send("Input.insertText", { text });
+}
+
 async function clickFirstMatch(cdp, selectors) {
   return evaluate(
     cdp,
@@ -116,7 +149,18 @@ export async function unlock({ port, extensionId, password }) {
   const tab = await res.json();
   const { cdp, ws } = await attach(tab);
   try {
-    await sleep(1500); // let the extension's router settle before reading document.URL
+    // MEASURED (2026-07-22): a fixed sleep before checking lock state is a
+    // real bug, not just slow -- observed directly: at 500ms-1500ms after
+    // navigation, home.html has rendered NOTHING yet (zero [data-testid]
+    // elements at all, on a headless launch), so a same-moment "is the
+    // unlock screen present" check reads false and this function concluded
+    // "already unlocked" when the app simply hadn't painted anything yet.
+    // That is a false negative that would have silently skipped testing the
+    // password entirely -- exactly the failure shape this skill's own
+    // preflight check 4 exists to catch elsewhere (a proxy that looks like
+    // it proves something but doesn't). Poll for the app to render ANYTHING
+    // recognizable first, then decide.
+    await sleepUntil(async () => (await evaluate(cdp, `document.querySelectorAll('[data-testid]').length`)) > 0, 8000);
     const url = await evaluate(cdp, "document.URL");
 
     if (url.includes("#/onboarding")) {
@@ -126,34 +170,47 @@ export async function unlock({ port, extensionId, password }) {
       );
     }
 
-    const isLocked = await evaluate(cdp, `!!document.querySelector('[data-testid="unlock-password"]') || !!document.querySelector('input[type="password"]')`);
+    const isLocked = await evaluate(cdp, `!!document.querySelector('[data-testid="unlock-password"]')`);
     if (!isLocked) {
       return { alreadyUnlocked: true };
     }
 
-    await evaluate(
-      cdp,
-      `(() => {
-        const input = document.querySelector('[data-testid="unlock-password"]') || document.querySelector('input[type="password"]');
-        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-        setter.call(input, ${JSON.stringify(password)});
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      })()`,
-    );
+    await fillInput(cdp, '[data-testid="unlock-password"]', password);
     const clicked = await clickFirstMatch(cdp, ['[data-testid="unlock-submit"]', 'button[type="submit"]']);
     if (!clicked) throw new EnvironmentError("Could not find an unlock-submit button");
 
-    await sleepUntil(async () => !(await evaluate(cdp, `!!document.querySelector('input[type="password"]')`)), 10000);
+    // Race the two outcomes MetaMask actually has for a submitted password:
+    // the password input disappearing (success) or its own error banner
+    // appearing (rejected) -- LIVE-VERIFIED selector for the latter,
+    // `[data-testid="unlock-page-help-text"]`, found while diagnosing a real
+    // Keychain/vault password mismatch on 2026-07-22.
+    const outcome = await sleepUntil(async () => {
+      const stillLocked = await evaluate(cdp, `!!document.querySelector('input[type="password"]')`);
+      if (!stillLocked) return "unlocked";
+      const errorText = await evaluate(cdp, `document.querySelector('[data-testid="unlock-page-help-text"]')?.textContent?.trim() || ""`);
+      if (errorText) return "rejected";
+      return null;
+    }, 10000);
+    if (outcome === "rejected") {
+      throw new IncorrectPasswordError(
+        "MetaMask rejected the password (the vault's own error banner appeared) -- the value stored in " +
+          "the Keychain does not match this vault's actual password.",
+      );
+    }
     return { alreadyUnlocked: false };
   } finally {
     ws.close();
   }
 }
 
+// Returns whatever truthy value conditionFn() produces (not just a
+// boolean), so callers racing multiple distinct outcomes (e.g. "unlocked"
+// vs "rejected" above) can tell which one actually happened.
 async function sleepUntil(conditionFn, timeoutMs, intervalMs = 300) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (await conditionFn()) return;
+    const result = await conditionFn();
+    if (result) return result;
     await sleep(intervalMs);
   }
   throw new EnvironmentError(`Condition not met within ${timeoutMs}ms`);

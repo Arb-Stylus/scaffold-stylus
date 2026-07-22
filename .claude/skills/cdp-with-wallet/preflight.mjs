@@ -205,8 +205,11 @@ function findChromeUsingProfile(profileDir) {
   return null;
 }
 
-async function readVaultStateViaCdp() {
-  const { launchChrome, findFreePort, waitForCdpReady, CDP, killChromeGroup } = await import("./launch.mjs");
+// Shared by both the vault-read check and the live-unlock check below --
+// both need a Chrome process against the REAL profile, both need the same
+// conflicting-process guard, both must always kill what they launched.
+async function withChromeOnRealProfile(callback) {
+  const { launchChrome, findFreePort, waitForCdpReady, killChromeGroup } = await import("./launch.mjs");
 
   const conflict = findChromeUsingProfile(PROFILE_DIR);
   if (conflict) {
@@ -221,19 +224,27 @@ async function readVaultStateViaCdp() {
   // extension would trip Chrome's content-verification (see SKILL.md
   // "Measured unknowns" -- loading a Web-Store-installed extension's
   // directory via --load-extension fails content_verify_job with a hash
-  // mismatch, even with _metadata stripped). So this check does not
-  // copy/relaunch the extension standalone; it opens the REAL profile
-  // directly, read-only, via chrome.storage.local -- Chrome permits only
-  // one process to hold a given user-data-dir at a time, so this must not
-  // be run concurrently with a real automation session against the same
-  // profile.
+  // mismatch, even with _metadata stripped). So these checks do not
+  // copy/relaunch the extension standalone; they open the REAL profile
+  // directly -- Chrome permits only one process to hold a given
+  // user-data-dir at a time, so this must not be run concurrently with a
+  // real automation session against the same profile.
   const chrome = launchChrome({ port, userDataDir: PROFILE_DIR, headless: true });
   try {
     // If the timeout below fires, it means CDP genuinely never came up for
     // some OTHER reason (Chrome crashed, a firewall rule, etc) -- the
-    // conflicting-process case is already ruled out above, so this message
-    // stays generic and the two causes stay distinguishable.
+    // conflicting-process case is already ruled out above, so that timeout
+    // message stays generic and the two causes stay distinguishable.
     await waitForCdpReady(port, 15000);
+    return await callback(port);
+  } finally {
+    await killChromeGroup(chrome.pid);
+  }
+}
+
+async function readVaultStateViaCdp() {
+  const { CDP } = await import("./launch.mjs");
+  return withChromeOnRealProfile(async port => {
     const target = await waitForServiceWorker(port, METAMASK_EXTENSION_ID, 10000);
     const ws = new WebSocket(target.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
@@ -280,9 +291,7 @@ async function readVaultStateViaCdp() {
       throw new Error(`chrome.storage never became available on the service worker: ${lastErr}`);
     }
     return result.result.value;
-  } finally {
-    await killChromeGroup(chrome.pid);
-  }
+  });
 }
 
 async function waitForServiceWorker(port, extensionId, timeoutMs) {
@@ -297,16 +306,32 @@ async function waitForServiceWorker(port, extensionId, timeoutMs) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Keychain entry present
+// 4. Keychain entry present AND correct
 // ---------------------------------------------------------------------------
-function checkKeychainEntry() {
-  const name = "Keychain entry present";
+//
+// MEASURED (2026-07-22): an existence-only check is not enough. On this
+// machine the Keychain item existed (created earlier in the session) but
+// held a DIFFERENT value than the password actually set during MetaMask
+// onboarding (set later, at a different moment) -- preflight reported OK,
+// and unlock() failed several steps downstream with a confusing
+// "MetaMask rejected the password" error. That is the exact same failure
+// shape as check 3's "non-empty directory != initialised vault": a cheap
+// proxy that looks like it proves the real thing but doesn't. The fix here
+// is the same kind -- verify the password actually WORKS by attempting a
+// real unlock, not just that some value is stored under that name.
+//
+// This needs prerequisite 3 (vault initialised) to have already passed --
+// there is nothing to unlock otherwise -- so `vaultOk` gates the live
+// attempt; call this AFTER checkVaultInitialised(), passing its result.
+async function checkKeychainEntry(vaultOk) {
+  const name = "Keychain entry present and correct";
+  let password;
   try {
-    // Existence check ONLY -- never pass -w here, which would print the
-    // password to stdout.
-    execFileSync("security", ["find-generic-password", "-s", KEYCHAIN_SERVICE], { stdio: "ignore" });
-    record(name, "OK", `security find-generic-password -s ${KEYCHAIN_SERVICE} exits 0`);
-    return true;
+    // Read in-process via execFileSync -- never through a shell command
+    // substitution passed as an argv (that would land the password in `ps`
+    // output for the life of the process) and never printed/logged, only
+    // its length ever appears below.
+    password = execFileSync("security", ["find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"], { encoding: "utf8" }).trim();
   } catch {
     record(
       name,
@@ -316,6 +341,35 @@ function checkKeychainEntry() {
         `(this prompts for the password interactively -- it is never echoed and never touches shell history; ` +
         `do NOT pass -w <password> as a literal argument).`,
     );
+    return false;
+  }
+
+  if (!vaultOk) {
+    // Nothing to unlock yet -- fall back to existence-only, same as the
+    // previous behavior, rather than blocking on prerequisite 3's own SKIP.
+    record(name, "OK", `entry present (length ${password.length}) -- vault not initialised yet, so password correctness could not be verified (see prerequisite 3)`);
+    return true;
+  }
+
+  const { unlock, IncorrectPasswordError } = await import("./metamask.mjs");
+  try {
+    const result = await withChromeOnRealProfile(port => unlock({ port, extensionId: METAMASK_EXTENSION_ID, password }));
+    record(name, "OK", `entry present (length ${password.length}) and successfully unlocked the vault (alreadyUnlocked=${result.alreadyUnlocked})`);
+    return true;
+  } catch (err) {
+    if (err instanceof IncorrectPasswordError) {
+      record(
+        name,
+        "SKIP",
+        `entry present (length ${password.length}) but MetaMask rejected it -- the stored value does not match this vault's actual password`,
+        `security add-generic-password -U -s ${KEYCHAIN_SERVICE} -a "$USER" -w  ` +
+          `(the -U flag updates the existing item; set it to the SAME password you use to unlock MetaMask by hand). ` +
+          `This drifts because the two are set at different moments -- the Keychain entry when this machine was first ` +
+          `provisioned, the MetaMask password later during onboarding -- so nothing keeps them in sync automatically.`,
+      );
+    } else {
+      record(name, "SKIP", `could not verify live (${err.message})`, `Investigate the error above; this is not a missing-prerequisite case.`);
+    }
     return false;
   }
 }
@@ -375,8 +429,8 @@ async function main() {
 
   checkProfileDir();
   checkMetaMaskInstalled();
-  await checkVaultInitialised();
-  checkKeychainEntry();
+  const vaultOk = await checkVaultInitialised();
+  await checkKeychainEntry(vaultOk);
   await checkSepoliaRpc();
 
   console.log("");
