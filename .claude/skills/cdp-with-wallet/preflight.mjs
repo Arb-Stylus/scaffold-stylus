@@ -1,0 +1,325 @@
+#!/usr/bin/env node
+// .claude/skills/cdp-with-wallet/preflight.mjs
+//
+// Onboarding gate for the cdp-with-wallet skill. Every prerequisite here
+// depends on MACHINE-LOCAL state that does not exist in the repo: a Chrome
+// profile with MetaMask installed and set up, a Keychain entry, and a
+// reachable Sepolia RPC. The machine this skill was designed on has all of
+// it; no other machine does automatically.
+//
+// Same contract as smoke-test's Steps 9a/9b: a missing prerequisite SKIPs
+// with the exact fix command, it never hard-fails/throws. This script only
+// reads state (filesystem stats, a Keychain existence check, one RPC call);
+// it never installs, imports, or writes anything.
+//
+// Usage:
+//   node .claude/skills/cdp-with-wallet/preflight.mjs
+//
+// Exit codes:
+//   0 - every prerequisite satisfied, skill is ready to run
+//   1 - one or more prerequisites are missing (see per-check SKIP lines above
+//       the summary for the exact fix). This is NOT a crash -- it is the
+//       expected result on a machine that hasn't been onboarded yet.
+//
+// Env var overrides (for testing the absent case WITHOUT touching the real
+// profile/Keychain/env file -- never delete or edit the real ones to test
+// this script):
+//   CDP_WALLET_PROFILE_DIR   override $HOME/.chrome-debug-profile
+//   CDP_WALLET_KEYCHAIN_SERVICE  override the Keychain service name
+//   CDP_WALLET_STYLUS_ENV    override packages/stylus/.env
+
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+
+const METAMASK_EXTENSION_ID = "nkbihfbeogaeaoehlefnkodbefgpgknn";
+const ARBITRUM_SEPOLIA_RPC_TIMEOUT_MS = 5000;
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+const PROFILE_DIR = process.env.CDP_WALLET_PROFILE_DIR || path.join(os.homedir(), ".chrome-debug-profile");
+const KEYCHAIN_SERVICE = process.env.CDP_WALLET_KEYCHAIN_SERVICE || "stylus-demo-metamask";
+const STYLUS_ENV_PATH = process.env.CDP_WALLET_STYLUS_ENV || path.join("packages", "stylus", ".env");
+
+const results = []; // { name, status: "OK"|"SKIP", detail, fix }
+function record(name, status, detail, fix) {
+  results.push({ name, status, detail, fix });
+  const line = `[${status}] ${name} -- ${detail}`;
+  console.log(line);
+  if (status === "SKIP") console.log(`  fix: ${fix}`);
+}
+
+// ---------------------------------------------------------------------------
+// 1. Chrome debug profile directory
+// ---------------------------------------------------------------------------
+function checkProfileDir() {
+  const name = "Chrome debug profile directory";
+  if (fs.existsSync(PROFILE_DIR) && fs.statSync(PROFILE_DIR).isDirectory()) {
+    record(name, "OK", PROFILE_DIR);
+    return true;
+  }
+  record(
+    name,
+    "SKIP",
+    `${PROFILE_DIR} does not exist`,
+    `Launch Chrome once with that profile to create it, e.g.: ` +
+      `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --user-data-dir="${PROFILE_DIR}" ` +
+      `-- then close it and continue to Onboarding step 2 in SKILL.md.`,
+  );
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// 2. MetaMask installed in that profile
+// ---------------------------------------------------------------------------
+function checkMetaMaskInstalled() {
+  const name = "MetaMask installed in the debug profile";
+  const extDir = path.join(PROFILE_DIR, "Default", "Extensions", METAMASK_EXTENSION_ID);
+  if (!fs.existsSync(extDir)) {
+    record(
+      name,
+      "SKIP",
+      `no ${METAMASK_EXTENSION_ID} directory under ${extDir}`,
+      `Open Chrome with --user-data-dir="${PROFILE_DIR}", go to the MetaMask Chrome Web Store ` +
+        `page, and click "Add to Chrome". See SKILL.md Onboarding step 2.`,
+    );
+    return false;
+  }
+  const versions = fs.readdirSync(extDir).filter(name => fs.statSync(path.join(extDir, name)).isDirectory());
+  if (!versions.length) {
+    record(name, "SKIP", `${extDir} exists but has no version subdirectory`, `Reinstall MetaMask -- see SKILL.md Onboarding step 2.`);
+    return false;
+  }
+  const version = versions.sort().at(-1);
+  record(name, "OK", `version ${version.replace(/_0$/, "")} found at ${extDir}`);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// 3. MetaMask vault initialised
+// ---------------------------------------------------------------------------
+//
+// IMPORTANT (measured 2026-07-22): a non-empty
+// "Local Extension Settings/<id>" directory is NOT sufficient evidence that
+// a vault exists. That directory holds ALL of chrome.storage.local for the
+// extension -- locale, telemetry consent, feature flags, snap registries --
+// which is non-empty for a freshly-installed, never-onboarded extension too.
+// On the machine this skill was designed on, that directory is >9MB and
+// non-empty, yet a live check (KeyringController.vault via a real Chrome +
+// CDP session) showed no vault and zero accounts -- MetaMask's own UI
+// confirms this by redirecting home.html to #/onboarding/welcome instead of
+// an unlock screen. A directory-size check would have reported this
+// prerequisite as satisfied when it was not: exactly the false-positive this
+// check exists to avoid. So this check does not just stat a directory --
+// it launches a short-lived headless Chrome, opens the extension's own
+// service worker, and reads chrome.storage.local directly.
+async function checkVaultInitialised() {
+  const name = "MetaMask vault initialised";
+  const extDir = path.join(PROFILE_DIR, "Default", "Extensions", METAMASK_EXTENSION_ID);
+  if (!fs.existsSync(extDir)) {
+    record(name, "SKIP", "MetaMask is not installed (see prerequisite 2 above)", "Complete prerequisite 2 first.");
+    return false;
+  }
+
+  const fixMsg =
+    "Open Chrome with --user-data-dir pointed at the debug profile, open the MetaMask extension, " +
+    "and complete setup by IMPORTING AN EXISTING SEED PHRASE for a TESTNET-ONLY account " +
+    "(never one holding mainnet funds -- this skill signs transactions without reading their contents). " +
+    "See SKILL.md Onboarding step 3.";
+
+  let vaultState;
+  try {
+    vaultState = await readVaultStateViaCdp();
+  } catch (err) {
+    // Any failure here (Chrome missing, CDP never came up, extension never
+    // registered a service worker) is reported as SKIP with the raw error --
+    // this check must never crash the whole preflight run.
+    record(name, "SKIP", `could not verify live (${err.message})`, fixMsg);
+    return false;
+  }
+
+  if (!vaultState.hasVault || vaultState.accountCount === 0) {
+    record(
+      name,
+      "SKIP",
+      `no vault / zero accounts in chrome.storage.local (hasVault=${vaultState.hasVault}, accounts=${vaultState.accountCount}, completedOnboarding=${vaultState.completedOnboarding})`,
+      fixMsg,
+    );
+    return false;
+  }
+  record(name, "OK", `vault present, ${vaultState.accountCount} account(s), completedOnboarding=${vaultState.completedOnboarding}`);
+  return true;
+}
+
+async function readVaultStateViaCdp() {
+  const { launchChrome, findFreePort, waitForCdpReady, CDP, killChromeGroup } = await import("./launch.mjs");
+  const port = await findFreePort(9222);
+  // A throwaway profile pointed at a COPY of this profile's on-disk
+  // extension would trip Chrome's content-verification (see SKILL.md
+  // "Measured unknowns" -- loading a Web-Store-installed extension's
+  // directory via --load-extension fails content_verify_job with a hash
+  // mismatch, even with _metadata stripped). So this check does not
+  // copy/relaunch the extension standalone; it opens the REAL profile
+  // directly, read-only, via chrome.storage.local -- Chrome permits only
+  // one process to hold a given user-data-dir at a time, so this must not
+  // be run concurrently with a real automation session against the same
+  // profile.
+  const chrome = launchChrome({ port, userDataDir: PROFILE_DIR, headless: true });
+  try {
+    await waitForCdpReady(port, 15000);
+    const target = await waitForServiceWorker(port, METAMASK_EXTENSION_ID, 10000);
+    const ws = new WebSocket(target.webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => {
+      ws.addEventListener("open", () => resolve(), { once: true });
+      ws.addEventListener("error", e => reject(new Error(`WebSocket connect failed: ${e.message}`)), { once: true });
+    });
+    const cdp = new CDP(ws);
+    await cdp.send("Runtime.enable");
+
+    // MEASURED (2026-07-22): the service_worker target appears in /json/list
+    // slightly before the worker's top-level script has finished registering
+    // `chrome.storage` -- an evaluate() fired immediately on attach throws
+    // "Cannot read properties of undefined (reading 'local')". Retrying a
+    // few times a short distance apart clears it; there is no CDP event to
+    // wait on instead (the worker doesn't fire one for "APIs are bound").
+    let result;
+    let lastErr;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      result = await cdp.send("Runtime.evaluate", {
+        expression: `
+          typeof chrome === "undefined" || typeof chrome.storage === "undefined"
+            ? Promise.reject(new Error("chrome.storage not yet bound"))
+            : new Promise((resolve) => {
+                chrome.storage.local.get(["KeyringController", "OnboardingController", "AccountsController"], (items) => {
+                  resolve({
+                    hasVault: !!(items.KeyringController && items.KeyringController.vault),
+                    accountCount: items.AccountsController && items.AccountsController.internalAccounts
+                      ? Object.keys(items.AccountsController.internalAccounts.accounts || {}).length
+                      : 0,
+                    completedOnboarding: !!(items.OnboardingController && items.OnboardingController.completedOnboarding),
+                  });
+                });
+              })
+        `,
+        awaitPromise: true,
+        returnByValue: true,
+      });
+      if (!result.exceptionDetails) break;
+      lastErr = result.exceptionDetails.exception?.description || JSON.stringify(result.exceptionDetails);
+      await sleep(400);
+    }
+    ws.close();
+    if (!result || result.exceptionDetails) {
+      throw new Error(`chrome.storage never became available on the service worker: ${lastErr}`);
+    }
+    return result.result.value;
+  } finally {
+    await killChromeGroup(chrome.pid);
+  }
+}
+
+async function waitForServiceWorker(port, extensionId, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const list = await fetch(`http://127.0.0.1:${port}/json/list`).then(r => r.json());
+    const target = list.find(t => t.type === "service_worker" && t.url.includes(extensionId));
+    if (target) return target;
+    await new Promise(r => setTimeout(r, 300));
+  }
+  throw new Error(`MetaMask service worker never appeared within ${timeoutMs}ms`);
+}
+
+// ---------------------------------------------------------------------------
+// 4. Keychain entry present
+// ---------------------------------------------------------------------------
+function checkKeychainEntry() {
+  const name = "Keychain entry present";
+  try {
+    // Existence check ONLY -- never pass -w here, which would print the
+    // password to stdout.
+    execFileSync("security", ["find-generic-password", "-s", KEYCHAIN_SERVICE], { stdio: "ignore" });
+    record(name, "OK", `security find-generic-password -s ${KEYCHAIN_SERVICE} exits 0`);
+    return true;
+  } catch {
+    record(
+      name,
+      "SKIP",
+      `no Keychain item named "${KEYCHAIN_SERVICE}"`,
+      `security add-generic-password -s ${KEYCHAIN_SERVICE} -a "$USER" -w  ` +
+        `(this prompts for the password interactively -- it is never echoed and never touches shell history; ` +
+        `do NOT pass -w <password> as a literal argument).`,
+    );
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 5. Arbitrum Sepolia RPC reachable via packages/stylus/.env
+// ---------------------------------------------------------------------------
+async function checkSepoliaRpc() {
+  const name = "Arbitrum Sepolia RPC reachable";
+  const fixMsg =
+    `cp packages/stylus/.env.example packages/stylus/.env (if it doesn't exist yet), then fill in ` +
+    `RPC_URL_SEPOLIA in the "## sepolia" block. A public endpoint (e.g. https://sepolia-rollup.arbitrum.io/rpc) works.`;
+
+  if (!fs.existsSync(STYLUS_ENV_PATH)) {
+    record(name, "SKIP", `${STYLUS_ENV_PATH} does not exist`, fixMsg);
+    return false;
+  }
+  const envText = fs.readFileSync(STYLUS_ENV_PATH, "utf8");
+  const match = envText.match(/^RPC_URL_SEPOLIA=(.+)$/m);
+  const rpcUrl = match ? match[1].trim() : "";
+  if (!rpcUrl) {
+    record(name, "SKIP", `${STYLUS_ENV_PATH} exists but RPC_URL_SEPOLIA is blank/absent`, fixMsg);
+    return false;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ARBITRUM_SEPOLIA_RPC_TIMEOUT_MS);
+    const res = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    const body = await res.json();
+    const chainId = body.result;
+    if (chainId !== "0x66eee") {
+      record(name, "SKIP", `RPC responded but chainId ${chainId} != Arbitrum Sepolia's 0x66eee`, `Point RPC_URL_SEPOLIA at an Arbitrum Sepolia endpoint.`);
+      return false;
+    }
+    record(name, "OK", `${rpcUrl} reachable, chainId=0x66eee`);
+    return true;
+  } catch (err) {
+    record(name, "SKIP", `RPC_URL_SEPOLIA set but unreachable (${err.message})`, `Check connectivity / the URL itself. ${fixMsg}`);
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+async function main() {
+  console.log("=== cdp-with-wallet preflight ===");
+  console.log(`Profile dir: ${PROFILE_DIR}`);
+  console.log("");
+
+  checkProfileDir();
+  checkMetaMaskInstalled();
+  await checkVaultInitialised();
+  checkKeychainEntry();
+  await checkSepoliaRpc();
+
+  console.log("");
+  const skipped = results.filter(r => r.status === "SKIP");
+  if (skipped.length) {
+    console.log(`NOT READY: ${skipped.length}/${results.length} prerequisite(s) missing (see SKIP lines above for exact fixes).`);
+    process.exit(1);
+  }
+  console.log(`READY: all ${results.length} prerequisites satisfied.`);
+  process.exit(0);
+}
+
+main();

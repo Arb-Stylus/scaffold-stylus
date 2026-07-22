@@ -14,3 +14,7 @@ node_modules
 !.vscode/settings.json
 .idea
 .vercel
+
+# cdp-with-wallet skill run state (Chrome PIDs/ports/disabled-extension
+# records for detached processes) -- machine-local, never committed
+.claude/skills/cdp-with-wallet/.cdp-wallet-state.json
