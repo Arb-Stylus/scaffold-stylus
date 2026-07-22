@@ -140,9 +140,11 @@ primitives (`unlock()` -> `wallet_addEthereumChain` + `approveTx()` ->
   driven entirely with `headless: true`. A visible window stealing focus
   for routine automation is a real cost; the parameter stays available
   (`headless: false`) but nothing has to opt in to get the non-disruptive
-  default. **The one case that must opt out:** screen recording -- macOS
-  `screencapture -v` cannot capture a headless window (there is no window),
-  so the `demo-video` workflow (PR 2) needs `headless: false` explicitly.
+  default. Recording a demo video does **not** need `headless: false` --
+  an earlier design assumed macOS `screencapture -v` (which does need a
+  real window) but that path hit a real Screen Recording TCC permission
+  gate; `demo-video` (PR 2) instead uses CDP's own `Page.startScreencast`,
+  which captures frames from inside Chrome regardless of headless state.
 - Select the connector by **EIP-6963 `rdns === "io.metamask"`**, never by
   button position -- the debug profile holds 5 other wallet-shaped
   extensions (Braavos, Keplr, Xverse, UniSat, and the "Ready X" smart
