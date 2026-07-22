@@ -39,7 +39,31 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const PROFILE_DIR = process.env.CDP_WALLET_PROFILE_DIR || path.join(os.homedir(), ".chrome-debug-profile");
 const KEYCHAIN_SERVICE = process.env.CDP_WALLET_KEYCHAIN_SERVICE || "stylus-demo-metamask";
-const STYLUS_ENV_PATH = process.env.CDP_WALLET_STYLUS_ENV || path.join("packages", "stylus", ".env");
+const STYLUS_ENV_PATH = process.env.CDP_WALLET_STYLUS_ENV || path.join(mainCheckoutRoot(), "packages", "stylus", ".env");
+
+// MEASURED (2026-07-22): resolving packages/stylus/.env against process.cwd()
+// gives a false SKIP when this skill is run from a git worktree -- .env is
+// untracked, so it only exists in whichever checkout a human actually put it
+// in (normally the main one), never in a worktree's own copy of the tree.
+// `git rev-parse --git-common-dir` always points at the ONE shared .git dir
+// for a repo, from either the main checkout or any of its worktrees; its
+// parent is the main checkout's root in both cases (verified: run from the
+// worktree it printed the main repo's absolute .git path, not the worktree's
+// own; run from the main checkout it printed the same path either way once
+// --path-format=absolute is passed).
+function mainCheckoutRoot() {
+  try {
+    const gitCommonDir = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    }).trim();
+    return path.dirname(gitCommonDir);
+  } catch {
+    // Not inside a git repo (or git missing) -- fall back to cwd, same as
+    // the previous behavior, rather than crashing the whole preflight run.
+    return process.cwd();
+  }
+}
 
 const results = []; // { name, status: "OK"|"SKIP", detail, fix }
 function record(name, status, detail, fix) {
@@ -151,8 +175,47 @@ async function checkVaultInitialised() {
   return true;
 }
 
+// MEASURED (2026-07-22): Chrome only allows one process to hold a given
+// --user-data-dir at a time. If a human already has that profile open
+// (their normal interactive browsing session, no --remote-debugging-port),
+// launching a second Chrome against it never gets a CDP port up -- it just
+// times out. Without this check, that surfaces as
+// "Chrome's CDP endpoint never became reachable (fetch failed)", which
+// reads like a broken launcher or a network problem, and sends the next
+// person hunting for a bug that isn't there. This is the same failure
+// shape smoke-test hit before: Step 9c's balance gate misdiagnosed a
+// missing `cast` binary as "Sepolia RPC unreachable" -- right symptom,
+// wrong cause. Detecting the actual conflicting process up front and
+// naming its PID is the fix, same as here.
+function findChromeUsingProfile(profileDir) {
+  let psOutput;
+  try {
+    psOutput = execFileSync("ps", ["-ax", "-o", "pid=,command="], { encoding: "utf8" });
+  } catch {
+    return null; // ps itself failing is not this check's problem to diagnose
+  }
+  for (const line of psOutput.split("\n")) {
+    // Match the main browser binary specifically (trailing space excludes
+    // "Google Chrome Helper" et al, which also carry --user-data-dir).
+    if (!line.includes("Contents/MacOS/Google Chrome ")) continue;
+    if (!line.includes(`--user-data-dir=${profileDir}`)) continue;
+    const match = line.trim().match(/^(\d+)\s/);
+    if (match) return { pid: match[1], command: line.trim() };
+  }
+  return null;
+}
+
 async function readVaultStateViaCdp() {
   const { launchChrome, findFreePort, waitForCdpReady, CDP, killChromeGroup } = await import("./launch.mjs");
+
+  const conflict = findChromeUsingProfile(PROFILE_DIR);
+  if (conflict) {
+    throw new Error(
+      `another Chrome is already using this profile (PID ${conflict.pid}) -- quit it with Cmd+Q ` +
+        `(not just closing the window) and re-run`,
+    );
+  }
+
   const port = await findFreePort(9222);
   // A throwaway profile pointed at a COPY of this profile's on-disk
   // extension would trip Chrome's content-verification (see SKILL.md
@@ -166,6 +229,10 @@ async function readVaultStateViaCdp() {
   // profile.
   const chrome = launchChrome({ port, userDataDir: PROFILE_DIR, headless: true });
   try {
+    // If the timeout below fires, it means CDP genuinely never came up for
+    // some OTHER reason (Chrome crashed, a firewall rule, etc) -- the
+    // conflicting-process case is already ruled out above, so this message
+    // stays generic and the two causes stay distinguishable.
     await waitForCdpReady(port, 15000);
     const target = await waitForServiceWorker(port, METAMASK_EXTENSION_ID, 10000);
     const ws = new WebSocket(target.webSocketDebuggerUrl);

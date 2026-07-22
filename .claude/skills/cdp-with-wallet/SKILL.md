@@ -230,6 +230,19 @@ Run `node .claude/skills/cdp-with-wallet/preflight.mjs` first -- it checks
 every prerequisite below and SKIPs (never hard-fails) with the exact fix
 when one is missing, the same contract as smoke-test's Steps 9a/9b.
 
+**Before running `preflight.mjs` or the skill itself, fully quit any Chrome
+window open against the debug profile (Cmd+Q, not just closing the
+window).** Chrome only allows one process to hold a given `--user-data-dir`
+at a time -- MEASURED (2026-07-22): with the developer's own interactive
+Chrome still open against `$HOME/.chrome-debug-profile`, `preflight.mjs`'s
+vault check now names the exact conflicting PID and tells you to quit it;
+before that fix it surfaced as an opaque "CDP endpoint never became
+reachable (fetch failed)", which reads like a broken launcher, not a
+profile-lock conflict -- the same misdiagnosis shape as smoke-test Step
+9c's balance gate once reporting a missing `cast` binary as "Sepolia RPC
+unreachable." A fresh machine hits this on its very first run, the moment
+someone opens the debug profile by hand to check it exists.
+
 | # | Prerequisite | Scriptable? |
 |---|---|---|
 | 1 | `$HOME/.chrome-debug-profile` exists | Yes -- `preflight.mjs` checks it |
