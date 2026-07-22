@@ -187,7 +187,23 @@ export async function waitForCdpReady(port, timeoutMs = 15000) {
 // pass --disable-extensions-except -- see the file header for why that flag
 // doesn't do what it looks like it does. Single-wallet isolation happens
 // AFTER launch via isolateExtensions(), once CDP is up.
-export function launchChrome({ port, userDataDir, headless = false }) {
+//
+// Defaults to headless -- MEASURED (2026-07-22), not assumed: `--headless=new`
+// (Chrome's newer headless mode, unlike the old one) runs extensions, which
+// is exactly why MetaMask is drivable at all without a visible window. Proof
+// is this skill's own preflight.mjs: its vault/password checks read
+// chrome.storage.local out of MetaMask's service worker, and drove a real
+// unlock()/connect()/wallet_addEthereumChain/eth_sendTransaction chain to a
+// mined Arbitrum Sepolia transaction, entirely with headless: true. A
+// visible window stealing focus for routine automation is a real cost, not
+// a neutral default -- so callers that just want automation get the
+// non-disruptive behavior without needing to know this flag exists.
+//
+// The one case that MUST pass headless: false explicitly: screen recording.
+// macOS `screencapture -v` cannot capture a headless window's contents (no
+// window to capture) -- if you're building the demo-video workflow (PR 2),
+// start here, or you will lose time to a black recording.
+export function launchChrome({ port, userDataDir, headless = true }) {
   const bin = findChromeBinary();
   const args = [
     `--remote-debugging-port=${port}`,

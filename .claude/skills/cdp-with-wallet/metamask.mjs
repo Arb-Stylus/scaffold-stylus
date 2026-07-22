@@ -11,36 +11,41 @@
 // directly to it. Braavos itself is a different extension with different
 // selectors -- only the TECHNIQUE carries over, not any selector or path.
 //
-// *** SELECTOR VERIFICATION STATUS (2026-07-22) ***
-// The selectors below could NOT be verified against a live unlocked
-// instance. Two independent blockers, both measured on this machine:
-//   1. The real debug profile's MetaMask vault is not initialised -- no
-//      seed has been imported (see preflight.mjs check 3 / SKILL.md). Its
-//      home.html redirects to #/onboarding/welcome, never to an unlock
-//      screen, and chrome.storage.local's AccountsController has zero
-//      accounts. This directly contradicts the assumption the skill was
-//      designed under ("MetaMask is already set up, only the password is
-//      needed") -- run preflight.mjs (its check 3 does this same live
-//      check) before trusting these selectors against your profile.
-//   2. A disposable substitute (copying the installed extension into a temp
-//      profile via --load-extension, to discover selectors without touching
-//      the real profile) does not work either: Chrome's content-verification
-//      system rejects it outright --
-//      "Content verify job failed for extension: <id> at path: home.html and
-//      for reason:1" (hash mismatch) -- even with the installed copy's
-//      _metadata/ stripped. Web-Store-installed extensions cannot be
-//      reloaded unpacked under their real ID on this Chrome build.
-// The onboarding-screen testids below (onboarding-create-wallet,
-// onboarding-import-wallet) ARE live-verified -- that screen was reachable.
-// unlock-password / unlock-submit and the connect/confirm-screen selectors
-// are carried over from MetaMask's long-stable public test-id conventions,
-// NOT observed live on 13.35.1.0. Confirm them (or fix them) the first time
-// this skill is run against a real unlocked account, before relying on it.
+// *** SELECTOR VERIFICATION STATUS ***
+// LIVE-VERIFIED end to end on 2026-07-22, once the real profile's vault was
+// actually initialised (see SKILL.md Onboarding -- it was not, initially;
+// a non-empty extension-storage directory is not evidence of an
+// initialised vault, and this skill nearly shipped that false assumption).
+// The full chain was driven for real against Arbitrum Sepolia: unlock() ->
+// wallet_addEthereumChain (0x66eee, not preconfigured -- see SKILL.md
+// "Measured unknowns") -> connect() via EIP-6963 -> a real
+// eth_sendTransaction, mined and confirmed (status: 1) on-chain. Every
+// selector below is exactly what was clicked in that run, not a guess:
+//   - '[data-testid="unlock-password"]' / '[data-testid="unlock-submit"]'
+//     -- the unlock screen.
+//   - '[data-testid="unlock-page-help-text"]' -- the wrong-password error
+//     banner (locale-agnostic; this profile's MetaMask renders in
+//     Vietnamese, so text-matching would have been a trap of its own).
+//   - '[data-testid="confirm-btn"]' -- the connect-permissions screen's
+//     approve button (a single screen in this run, not the two some older
+//     MetaMask versions used).
+//   - '[data-testid="confirm-footer-button"]' -- approves BOTH a
+//     wallet_addEthereumChain confirmation and a transaction confirmation;
+//     MetaMask reuses the same confirmation-screen component for both, so
+//     approveTx() also happens to be the right primitive for approving an
+//     add-network request, without needing a separate function.
+// The remaining entries in each clickFirstMatch() fallback list below
+// (page-container-footer-next, connect-account-confirm, a bare
+// button[type="submit"]) were NEVER exercised in this run -- the
+// live-confirmed selector matched first every time. They stay as
+// defensive fallbacks for other MetaMask versions, but are NOT confirmed;
+// treat a run that falls through to one of them as a signal to
+// investigate, not as proof they work.
 //
 // Primitives:
 //   unlock({ port, extensionId, password })
 //   connect({ port, extensionId, dappCdp })
-//   approveTx({ port, extensionId })
+//   approveTx({ port, extensionId })       -- also approves add-network requests
 //   waitForTarget(port, predicate, opts)
 
 import { CDP, evaluate, EnvironmentError } from "./launch.mjs";
@@ -257,8 +262,11 @@ export async function connect({ port, extensionId, dappCdp }) {
   );
   const { cdp: popupCdp, ws } = await attach(popup);
   try {
-    // Modern MetaMask connect flows are 1-2 screens (permissions overview,
-    // then a final confirm) -- click whichever "proceed" button is present,
+    // LIVE-VERIFIED (2026-07-22): this build's connect flow is a single
+    // screen -- '[data-testid="confirm-btn"]' resolved eth_requestAccounts
+    // immediately, no second screen appeared. The loop below still handles
+    // a multi-screen flow defensively (older/other MetaMask builds have
+    // used one), clicking whichever "proceed" button is present and
     // repeating until the popup closes or eth_requestAccounts resolves.
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
@@ -285,9 +293,14 @@ export async function connect({ port, extensionId, dappCdp }) {
 
 // ---------------------------------------------------------------------------
 // approveTx() -- attach to the notification.html target and confirm. Same
-// transient-popup race as connect(); callers trigger the tx (e.g. clicking
-// a dapp's "Send" button) and then call this to drive the resulting
-// MetaMask confirmation to completion.
+// transient-popup race as connect() -- MEASURED directly (2026-07-22): the
+// first /json/list poll right after triggering eth_sendTransaction found no
+// notification.html target at all; it appeared roughly a second later.
+// Callers trigger the request (e.g. calling eth_sendTransaction, or a
+// dapp's "Send" button) and then call this to drive the resulting
+// MetaMask confirmation to completion. Also works, unmodified, for a
+// wallet_addEthereumChain confirmation -- MetaMask renders both through
+// the same confirmation-screen component and the same confirm-footer-button.
 // ---------------------------------------------------------------------------
 export async function approveTx({ port, extensionId, timeoutMs = 20000 }) {
   const popup = await waitForTarget(

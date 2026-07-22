@@ -44,19 +44,22 @@ does the same thing for MetaMask.
 
 | Can do | Cannot do |
 |---|---|
-| Unlock an already-initialised MetaMask vault given its password | Create a wallet, import a seed phrase, or otherwise initialise a vault (see Onboarding -- by design, not a limitation) |
+| Unlock an already-initialised MetaMask vault given its password -- **live-proven end to end** (see "Measured unknowns") | Create a wallet, import a seed phrase, or otherwise initialise a vault (see Onboarding -- by design, not a limitation) |
 | Select MetaMask's connector via EIP-6963 `rdns === "io.metamask"`, deterministically, regardless of how many other wallets are installed | Guarantee any *other* extension's popups are automatable the same way -- only MetaMask's `notification.html` shape has been reasoned about here |
-| Approve a connection or a transaction popup by finding and clicking its real button via CDP | Read or validate what a transaction actually does before approving it -- it clicks Confirm, it does not decide whether confirming is safe. Isolation (testnet-only funds, single-wallet profile) is the actual safety control, not this script's judgement |
+| Approve a connection, a `wallet_addEthereumChain` request, or a transaction popup by finding and clicking its real button via CDP -- all three use the same `confirm-footer-button`/`confirm-btn` mechanism, live-confirmed | Read or validate what a transaction actually does before approving it -- it clicks Confirm, it does not decide whether confirming is safe. Isolation (testnet-only funds, single-wallet profile) is the actual safety control, not this script's judgement |
 | Run against a dynamically-probed CDP port, so multiple runs / other Chrome usage don't collide on a fixed port | Assume `--disable-extensions-except` isolates MetaMask -- **measured false**, see below |
-| Recover from a crash mid-run via `node launch.mjs teardown` (kills leaked Chrome AND restores any extensions it disabled) | Guarantee zero risk if the *real* automation script itself crashes between disabling extensions and calling `restoreExtensions()` -- always run `node launch.mjs teardown` afterward as a matter of course, not only when something visibly went wrong |
-| Detect a not-yet-onboarded machine and say so with an exact fix command | Fix a not-yet-onboarded machine automatically -- see Onboarding |
+| Recover from a crash mid-run via `node launch.mjs teardown` (kills leaked Chrome AND restores any extensions it disabled) -- live-tested against a real crashed ad-hoc script | Guarantee zero risk if the *real* automation script itself crashes between disabling extensions and calling `restoreExtensions()` -- always run `node launch.mjs teardown` afterward as a matter of course, not only when something visibly went wrong |
+| Detect a not-yet-onboarded machine and say so with an exact fix command, INCLUDING a Keychain entry that exists but holds the wrong password (see prerequisite 4) | Fix a not-yet-onboarded machine automatically -- see Onboarding |
 
-## Measured unknowns (2026-07-22)
+## Measured unknowns
 
 The design for this skill called out four things as "measure, don't reason
-about" because each has a plausible-sounding wrong answer. Here is what was
-actually observed, live, on this machine (Chrome 150.0.7871.129, MetaMask
-13.35.1.0):
+about" because each has a plausible-sounding wrong answer. All four are now
+answered, live, on this machine (Chrome 150.0.7871.129, MetaMask 13.35.1.0) --
+the first two below during initial development (2026-07-22), the last two
+during a live, end-to-end run against Arbitrum Sepolia once a human had
+actually completed onboarding (also 2026-07-22, several hours later --
+see Onboarding for why that gap mattered):
 
 1. **`--disable-extensions-except` with an installed (not unpacked)
    extension.** Measured **false**: passing it either the installed
@@ -72,66 +75,53 @@ actually observed, live, on this machine (Chrome 150.0.7871.129, MetaMask
    own JS context. That API is available there, unrestricted, without
    toggling Developer Mode, for Web-Store-installed extensions.
 
-2. **MetaMask 13.35.1.0 selectors.** **Could not be fully verified live** --
-   see "Selector verification status" below. The onboarding screen's
-   testids (`onboarding-create-wallet`, `onboarding-import-wallet`) ARE
-   live-confirmed, since that screen was reachable. The unlock/connect/
-   confirm screens were not reachable (no initialised vault -- see
-   Onboarding), so their selectors in `metamask.mjs` are carried over from
-   MetaMask's long-stable public test-id conventions, not observed on this
-   build. **Confirm them the first time this skill runs against a real
-   unlocked account.**
+2. **MetaMask 13.35.1.0 selectors.** **Live-confirmed end to end.** Every
+   selector `metamask.mjs` uses for unlock/connect/approve is exactly what
+   was clicked in a real run (see the "LIVE-VERIFIED" block at the top of
+   that file) -- not carried over from another project or another MetaMask
+   version. Getting here surfaced two real bugs, both fixed in this PR:
+   - LavaMoat "scuttling" blocks the classic React-controlled-input trick
+     (grabbing `HTMLInputElement.prototype`'s value setter) with `Error:
+     LavaMoat - property "HTMLInputElement" of globalThis is inaccessible
+     under scuttling mode`. Fixed by focusing the element with a plain
+     `el.focus()` call and using CDP's own `Input.insertText`, which never
+     touches page globals.
+   - `unlock()`'s locked/unlocked check ran after a fixed 1500ms sleep --
+     on this machine's headless launch, the app had rendered **nothing**
+     yet at that point (zero `[data-testid]` elements at all), so the
+     check silently read "no unlock screen visible" as "already unlocked"
+     without ever testing the password. Fixed by polling for the app to
+     render something recognizable before deciding lock state, instead of
+     a fixed sleep.
 
-3. **The transient-popup race.** Designed defensively
-   (`metamask.mjs`'s `waitForTarget()` polls `GET /json/list` on a bounded
-   timeout, mirroring `browser-e2e.mjs`'s `waitFor()`), but not empirically
-   timed -- that requires a live connect/tx flow, which requires an
-   initialised vault (see Onboarding, again).
+3. **The transient-popup race.** Measured directly: the first
+   `GET /json/list` poll immediately after firing `eth_sendTransaction`
+   found no `notification.html` target at all; it appeared roughly a
+   second later. `waitForTarget()`'s poll-with-timeout design (mirroring
+   `browser-e2e.mjs`'s `waitFor()`) handled this correctly in the live run.
 
 4. **Is Arbitrum Sepolia already configured in this MetaMask instance?**
-   Measured **no**. `NetworkController.networkConfigurationsByChainId` on
-   this machine lists `0x1, 0x18c7, 0x2105, 0x279f, 0x38, 0x89, 0xa, 0xa4b1,
-   0xaa36a7, 0xe705, 0xe708` -- **no `0x66eee`** (Arbitrum Sepolia). Adding
-   it is an additional popup flow (MetaMask's "Add network" confirmation)
-   that this skill does not yet drive; plan for it before the first live
-   run against Sepolia.
+   Measured **no** -- confirmed twice, hours apart (`NetworkController.
+   networkConfigurationsByChainId` never included `0x66eee` before the live
+   run added it). Driving `wallet_addEthereumChain` from a dapp page (see
+   Procedure) pops the same confirmation-screen component `approveTx()`
+   already knows how to click (`confirm-footer-button`) -- MetaMask
+   resolved the request by both adding AND switching to the network in a
+   single confirmation, no second popup. `eth_chainId` read back `0x66eee`
+   immediately after.
 
-### Selector verification status -- read before trusting `metamask.mjs`
+### Live end-to-end proof
 
-Two independent, measured blockers prevented verifying `unlock()`,
-`connect()`, and `approveTx()`'s selectors against a real unlocked MetaMask
-instance on this machine:
+Real transaction on Arbitrum Sepolia, driven entirely through this skill's
+primitives (`unlock()` -> `wallet_addEthereumChain` + `approveTx()` ->
+`connect()` -> `eth_sendTransaction` + `approveTx()`):
 
-1. **The real debug profile's vault is not initialised.** `preflight.mjs`'s
-   check 3 does a live read of `chrome.storage.local` via the extension's
-   own service worker and found `KeyringController.vault` absent and
-   `AccountsController.internalAccounts.accounts` empty (`{}`). MetaMask's
-   own UI agrees: opening `home.html` redirects to `#/onboarding/welcome`,
-   never to an unlock screen. This directly contradicts the assumption this
-   skill was designed under ("MetaMask is already set up, only the
-   password is needed") -- a non-empty `Local Extension Settings/<id>`
-   directory (9MB+ on this machine) is **not** evidence of an initialised
-   vault; that directory holds all of `chrome.storage.local` for the
-   extension (locale, telemetry consent, feature flags, snap registries),
-   which is non-empty even for a never-onboarded install. See `preflight.mjs`
-   check 3's comment for the full reasoning -- this is exactly the kind of
-   false-positive proxy check that made smoke-test's Step 5 permanently
-   impossible, caught here before it could do the same.
-2. **A disposable substitute doesn't work either.** The obvious workaround
-   -- copy the installed extension's directory into a temp profile and load
-   it via `--load-extension` to get a throwaway wallet without touching the
-   real profile -- fails outright. Chrome's content-verification system
-   rejects it: `Content verify job failed for extension: <id> at path:
-   home.html and for reason:1` (hash mismatch), even with `_metadata/`
-   stripped from the copy. Web-Store-installed extensions cannot be
-   reloaded unpacked under their real ID on this Chrome build.
-
-Neither blocker is something this skill's code can work around -- both are
-Chrome/MetaMask platform behavior. The only path past them is a human
-completing Onboarding step 3 below (importing a seed by hand), after which
-a follow-up run should verify (and, if needed, correct) the unlock/connect/
-confirm selectors against the real unlocked instance before relying on them
-for anything unattended.
+- tx hash: `0x7c89e227ad9714a72f83925c7febcc52f5ba3e2cfddafa4d5c5773d279e0df8d`
+- https://sepolia.arbiscan.io/tx/0x7c89e227ad9714a72f83925c7febcc52f5ba3e2cfddafa4d5c5773d279e0df8d
+- `cast receipt` confirms `status: 1 (success)`, block 290078542, chainId
+  421614 (`0x66eee`), from/to `0x777d569Bd3b0A2De007097A3D7E1687C5E5EB859`
+  (the account imported in Onboarding step 3, matching
+  `ACCOUNT_ADDRESS_SEPOLIA` in `packages/stylus/.env`).
 
 ## Chrome launch contract
 
@@ -143,6 +133,16 @@ for anything unattended.
   automation run) doesn't collide.
 - No `--disable-extensions-except` (see measured unknown 1 above). Isolation
   happens post-launch via `launch.mjs`'s `isolateExtensions()`.
+- **Headless by default** (`launchChrome()`'s `headless` parameter defaults
+  to `true`). MEASURED, not assumed: Chrome's `--headless=new` mode (unlike
+  its older headless mode) runs extensions -- proven directly by this
+  skill's own preflight checks and its live end-to-end Sepolia run, both
+  driven entirely with `headless: true`. A visible window stealing focus
+  for routine automation is a real cost; the parameter stays available
+  (`headless: false`) but nothing has to opt in to get the non-disruptive
+  default. **The one case that must opt out:** screen recording -- macOS
+  `screencapture -v` cannot capture a headless window (there is no window),
+  so the `demo-video` workflow (PR 2) needs `headless: false` explicitly.
 - Select the connector by **EIP-6963 `rdns === "io.metamask"`**, never by
   button position -- the debug profile holds 5 other wallet-shaped
   extensions (Braavos, Keplr, Xverse, UniSat, and the "Ready X" smart
@@ -164,6 +164,20 @@ const { disabledIds } = await isolateExtensions(port, METAMASK_EXTENSION_ID, chr
 try {
   const password = /* read via `security find-generic-password -s stylus-demo-metamask -w`, never echoed/logged */;
   await unlock({ port, extensionId: METAMASK_EXTENSION_ID, password });
+
+  // If the target network isn't configured yet (LIVE-CONFIRMED: Arbitrum
+  // Sepolia, 0x66eee, is not preconfigured -- see "Measured unknowns"),
+  // trigger wallet_addEthereumChain from the dapp page's provider, then
+  // approve the resulting popup with the SAME primitive used for a
+  // transaction confirmation -- MetaMask renders both through the same
+  // confirmation-screen component:
+  //   dappCdp's provider.request({ method: "wallet_addEthereumChain", params: [{
+  //     chainId: "0x66eee", chainName: "Arbitrum Sepolia",
+  //     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  //     rpcUrls: ["https://sepolia-rollup.arbitrum.io/rpc"],
+  //     blockExplorerUrls: ["https://sepolia.arbiscan.io"],
+  //   }] })
+  await approveTx({ port, extensionId: METAMASK_EXTENSION_ID });
 
   // Navigate a separate CDP target to your dapp, attach a CDP session to it
   // (`dappCdp` below), THEN:
@@ -230,25 +244,26 @@ Run `node .claude/skills/cdp-with-wallet/preflight.mjs` first -- it checks
 every prerequisite below and SKIPs (never hard-fails) with the exact fix
 when one is missing, the same contract as smoke-test's Steps 9a/9b.
 
-**Before running `preflight.mjs` or the skill itself, fully quit any Chrome
-window open against the debug profile (Cmd+Q, not just closing the
-window).** Chrome only allows one process to hold a given `--user-data-dir`
-at a time -- MEASURED (2026-07-22): with the developer's own interactive
-Chrome still open against `$HOME/.chrome-debug-profile`, `preflight.mjs`'s
-vault check now names the exact conflicting PID and tells you to quit it;
-before that fix it surfaced as an opaque "CDP endpoint never became
-reachable (fetch failed)", which reads like a broken launcher, not a
-profile-lock conflict -- the same misdiagnosis shape as smoke-test Step
-9c's balance gate once reporting a missing `cast` binary as "Sepolia RPC
-unreachable." A fresh machine hits this on its very first run, the moment
-someone opens the debug profile by hand to check it exists.
+**Before any of this -- fully quit any Chrome window already open against
+the debug profile (Cmd+Q, not just closing the window).** Chrome only
+allows one process to hold a given `--user-data-dir` at a time. MEASURED
+(2026-07-22): with a developer's own interactive Chrome left open against
+`$HOME/.chrome-debug-profile`, `preflight.mjs`'s checks that launch their
+own Chrome can't get a CDP port up at all. Before this was fixed, that
+surfaced as an opaque "CDP endpoint never became reachable (fetch failed)",
+which reads like a broken launcher, not a profile-lock conflict -- the same
+misdiagnosis shape as smoke-test Step 9c once reporting a missing `cast`
+binary as "Sepolia RPC unreachable." `preflight.mjs` now detects this
+specific case and names the conflicting PID directly. A fresh machine hits
+this on its very first run, the moment someone opens the debug profile by
+hand to check it exists.
 
 | # | Prerequisite | Scriptable? |
 |---|---|---|
 | 1 | `$HOME/.chrome-debug-profile` exists | Yes -- `preflight.mjs` checks it |
 | 2 | MetaMask installed in that profile | Yes to check, **no** to fix -- see below |
-| 3 | MetaMask vault initialised | Yes to check (a live `chrome.storage.local` read, not a directory-size guess -- see "Selector verification status" above for why), **no** to fix -- see below |
-| 4 | Keychain item `stylus-demo-metamask` present | Yes -- existence check only, never reads the value |
+| 3 | MetaMask vault initialised | Yes to check (a live `chrome.storage.local` read, not a directory-size guess -- see below for why), **no** to fix -- see below |
+| 4 | Keychain item `stylus-demo-metamask` present **and correct** | Yes to check (a live unlock attempt, gated on 3 passing -- see below), **no** to fix -- see below |
 | 5 | Arbitrum Sepolia RPC reachable via `packages/stylus/.env`'s `RPC_URL_SEPOLIA` | Yes |
 
 **Steps 2 and 3 cannot be scripted, and should not be** -- installing a
@@ -262,18 +277,25 @@ this skill should never automate silently.
 
 **Step 3 (initialise the vault) -- read this before doing it:**
 1. Launch Chrome with the same profile and open the MetaMask extension.
-2. Choose **"I already have a wallet"** and import an **existing seed
-   phrase for a TESTNET-ONLY account** -- one that has never held, and will
-   never hold, mainnet funds. `approveTx()` signs whatever it's pointed at
-   without reading it; the only real safety boundary here is that the
-   account itself has nothing worth stealing.
-3. Set the vault password to the **same value** already stored in Keychain
-   under `stylus-demo-metamask` (see Step 4 below), so `unlock()` can use
-   it without a mismatch.
-4. Fund the account with a small amount of Arbitrum Sepolia ETH from a
-   faucet (see `readme.md`'s "Arbitrum Testnet Faucets" section).
+2. Create a new wallet (or choose "I already have a wallet" if you have a
+   seed phrase in mind) -- either way, set a password. **Note it down** --
+   step 4 needs the exact same value.
+3. **Fastest path for this repo, and what was actually done to produce
+   this PR's live-run evidence:** once the wallet exists, go to the account
+   menu -> **Import account -> Private Key**, and paste the value of
+   `PRIVATE_KEY_SEPOLIA` from `packages/stylus/.env`. That account is
+   **already funded** with Arbitrum Sepolia ETH -- no faucet trip needed,
+   and the deployer address and the MetaMask account end up identical,
+   which is convenient for matching up on-chain activity later. If you'd
+   rather import a fresh seed instead and fund it yourself, that works too
+   (see `readme.md`'s "Arbitrum Testnet Faucets" section) -- either way,
+   **this account must be TESTNET-ONLY**, one that has never held and will
+   never hold mainnet funds. `approveTx()` signs whatever it's pointed at
+   without reading it; the account having nothing worth stealing is the
+   actual safety boundary, not this skill's judgement.
 
-**Step 4 (Keychain entry):**
+**Step 4 (Keychain entry) -- and the gotcha that cost three round trips
+while building this skill:**
 ```bash
 security add-generic-password -s stylus-demo-metamask -a "$USER" -w
 ```
@@ -281,16 +303,50 @@ This prompts for the password interactively -- it is never echoed and never
 touches shell history. Do **not** pass `-w <password>` as a literal
 argument on the command line.
 
+**The Keychain entry and the MetaMask password are set at two different
+moments** -- this one now, the actual vault password back in step 3 -- **so
+nothing keeps them in sync automatically, and they will silently drift** if
+you change one without the other. This is exactly what happened while
+building this skill: a Keychain entry created early in the session held a
+26-character value; the password actually set in MetaMask during onboarding
+was 13 characters with a period; `preflight.mjs`'s old existence-only check
+reported OK regardless, and `unlock()` failed three steps later with
+MetaMask's own "incorrect password" error. `preflight.mjs` check 4 now
+performs a live unlock attempt (gated on check 3 having passed -- there is
+nothing to unlock otherwise) instead of just checking the entry exists, so
+this drift is now caught up front with an exact fix:
+```bash
+security add-generic-password -U -s stylus-demo-metamask -a "$USER" -w
+```
+(the `-U` flag updates the existing item -- a plain `add-generic-password`
+without it exits with "the specified item already exists" and changes
+nothing, which looks like success at a glance).
+
 **Step 5 (Sepolia RPC):** copy `packages/stylus/.env.example` to
 `packages/stylus/.env` if it doesn't exist, and fill in `RPC_URL_SEPOLIA` in
 the `## sepolia` block (a public endpoint such as
-`https://sepolia-rollup.arbitrum.io/rpc` works).
+`https://sepolia-rollup.arbitrum.io/rpc` works). Resolved from the git
+repository root (`git rev-parse --git-common-dir`'s parent), not
+`process.cwd()`, so this works whether `preflight.mjs` is run from the main
+checkout or from a worktree -- `.env` is untracked and only exists wherever
+a human actually put it (normally the main checkout).
 
-Every check above was verified in **both** directions where a live present
-case exists: `preflight.mjs`'s output for the induced-absent case (a
-non-existent profile dir, a non-existent Keychain service name, a
-non-existent env file) and for the real present case (this machine's
-existing profile, extension, Keychain entry) are both in this repo's PR
-description / commit evidence. Check 3 (vault) could only be verified in
-the absent direction on this machine, since no present case exists here --
-see "Selector verification status" above.
+**One more thing a fresh machine will hit on its first live run:** Arbitrum
+Sepolia is not preconfigured in MetaMask (see "Measured unknowns" #4). This
+isn't a separate manual onboarding step -- the skill drives it itself via
+`wallet_addEthereumChain` + `approveTx()`, shown in Procedure above -- but
+expect an extra confirmation popup the first time, and don't mistake it for
+a bug.
+
+Every check was verified in **all** the directions that exist for it:
+`preflight.mjs`'s raw output for the induced-absent case (a non-existent
+profile dir, a non-existent Keychain service name, a non-existent env file)
+and for the real present case are both in this PR's evidence. Check 3
+(vault) was verified in both directions on this machine, hours apart -- SKIP
+before a human completed onboarding, OK after. Check 4 (Keychain password)
+was verified in all three of its outcomes: entry absent, entry present but
+wrong (the real drift above, and separately re-confirmed with a disposable
+test Keychain entry holding a deliberately wrong value), and entry present
+and correct -- the last of these driving a real, unlocked MetaMask session
+through to a mined Arbitrum Sepolia transaction (see "Live end-to-end
+proof" above).
