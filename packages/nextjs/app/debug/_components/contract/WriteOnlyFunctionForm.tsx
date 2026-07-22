@@ -15,6 +15,7 @@ import {
 } from "~~/app/debug/_components/contract";
 import { IntegerInput } from "~~/components/scaffold-eth";
 import { useTransactor } from "~~/hooks/scaffold-eth";
+import { applyGasFeeMultiplier } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 import { AllowedChainIds } from "~~/utils/scaffold-stylus";
 import { simulateContractWriteAndNotifyError } from "~~/utils/scaffold-eth/contract";
@@ -55,13 +56,17 @@ export const WriteOnlyFunctionForm = ({
           args: getParsedContractFunctionArgs(form),
           value: BigInt(txValue),
         };
+        const bufferedWriteContractObj = await applyGasFeeMultiplier(
+          writeContractObj as any,
+          targetNetwork.id as AllowedChainIds,
+        );
         await simulateContractWriteAndNotifyError({
           wagmiConfig,
-          writeContractParams: writeContractObj,
+          writeContractParams: bufferedWriteContractObj,
           chainId: targetNetwork.id as AllowedChainIds,
         });
 
-        const makeWriteWithParams = () => writeContractAsync(writeContractObj);
+        const makeWriteWithParams = () => writeContractAsync(bufferedWriteContractObj as typeof writeContractObj);
         await writeTxn(makeWriteWithParams);
         onChange();
       } catch (e: any) {
