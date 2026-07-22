@@ -199,10 +199,13 @@ export async function waitForCdpReady(port, timeoutMs = 15000) {
 // a neutral default -- so callers that just want automation get the
 // non-disruptive behavior without needing to know this flag exists.
 //
-// The one case that MUST pass headless: false explicitly: screen recording.
-// macOS `screencapture -v` cannot capture a headless window's contents (no
-// window to capture) -- if you're building the demo-video workflow (PR 2),
-// start here, or you will lose time to a black recording.
+// Recording the browser for a demo video does NOT require headless: false.
+// The initial demo-video design (PR 2) assumed macOS `screencapture -v` --
+// which does need a real, visible window -- but that path hit a real macOS
+// Screen Recording TCC permission gate mid-build. It was replaced with CDP's
+// own Page.startScreencast, which captures frames from inside Chrome
+// (works headless, needs no OS permission, and works in CI). See
+// .claude/skills/demo-video/SKILL.md for the frame-timing details.
 export function launchChrome({ port, userDataDir, headless = true }) {
   const bin = findChromeBinary();
   const args = [
@@ -272,6 +275,16 @@ export class CDP {
       this.pending.set(id, { resolve, reject });
       this.ws.send(JSON.stringify({ id, method, params }));
     });
+  }
+
+  // Persistent listener for events that fire repeatedly (e.g.
+  // Page.screencastFrame) -- unlike once(), the handler is never
+  // auto-removed. Returns an unsubscribe function.
+  on(method, handler) {
+    if (!this.eventListeners.has(method)) this.eventListeners.set(method, new Set());
+    const set = this.eventListeners.get(method);
+    set.add(handler);
+    return () => set.delete(handler);
   }
 
   once(method, timeoutMs, description = method) {

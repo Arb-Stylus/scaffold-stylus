@@ -140,9 +140,11 @@ primitives (`unlock()` -> `wallet_addEthereumChain` + `approveTx()` ->
   driven entirely with `headless: true`. A visible window stealing focus
   for routine automation is a real cost; the parameter stays available
   (`headless: false`) but nothing has to opt in to get the non-disruptive
-  default. **The one case that must opt out:** screen recording -- macOS
-  `screencapture -v` cannot capture a headless window (there is no window),
-  so the `demo-video` workflow (PR 2) needs `headless: false` explicitly.
+  default. Recording a demo video does **not** need `headless: false` --
+  an earlier design assumed macOS `screencapture -v` (which does need a
+  real window) but that path hit a real Screen Recording TCC permission
+  gate; `demo-video` (PR 2) instead uses CDP's own `Page.startScreencast`,
+  which captures frames from inside Chrome regardless of headless state.
 - Select the connector by **EIP-6963 `rdns === "io.metamask"`**, never by
   button position -- the debug profile holds 5 other wallet-shaped
   extensions (Braavos, Keplr, Xverse, UniSat, and the "Ready X" smart
@@ -243,6 +245,21 @@ This skill depends on machine-local state that does not exist in the repo.
 Run `node .claude/skills/cdp-with-wallet/preflight.mjs` first -- it checks
 every prerequisite below and SKIPs (never hard-fails) with the exact fix
 when one is missing, the same contract as smoke-test's Steps 9a/9b.
+
+**Exit code is three-way, not binary** (adopted from scaffold-stark,
+2026-07-22) -- callers can rely on this to distinguish "fix your machine"
+from "try again later":
+| Exit | Meaning | Callers should |
+|---|---|---|
+| `0` | GREEN -- every prerequisite satisfied | proceed |
+| `1` | RED -- a real, fixable gap (no vault, wrong/missing Keychain entry, MetaMask not installed, etc) | block, and act on the SKIP line's fix |
+| `2` | INFRA -- every SKIP is environmental (Sepolia RPC unreachable, another Chrome window holding the debug profile) -- not a defect in this machine's setup | may choose not to block; a retry can legitimately succeed |
+
+A bare 0/1 would make a transient network blip look identical to a
+genuinely misconfigured machine -- and a gate that goes red on things
+nobody can control is a gate people learn to ignore. If BOTH categories of
+SKIP are present in the same run, exit `1` (RED) wins: a real setup gap
+still needs fixing regardless of what else happened to be flaky.
 
 **Before any of this -- fully quit any Chrome window already open against
 the debug profile (Cmd+Q, not just closing the window).** Chrome only

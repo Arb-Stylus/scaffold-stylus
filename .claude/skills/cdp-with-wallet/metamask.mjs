@@ -301,6 +301,18 @@ export async function connect({ port, extensionId, dappCdp }) {
 // MetaMask confirmation to completion. Also works, unmodified, for a
 // wallet_addEthereumChain confirmation -- MetaMask renders both through
 // the same confirmation-screen component and the same confirm-footer-button.
+//
+// MEASURED (2026-07-22, building demo-video/PR 2): a SECOND race, inside the
+// popup itself, not just around its existence. Attaching CDP the moment
+// `/json/list` reports the notification.html target existing is not the
+// same as that target having painted anything yet -- clickFirstMatch() ran
+// against a still-blank document and found no match, even though the exact
+// same '[data-testid="confirm-footer-button"]' selector was confirmed
+// present and clickable ~1.5s later via a manual repro. This is the same
+// failure shape unlock() already had to fix (a target existing is not the
+// same as it having rendered) -- applying the same fix here: poll for a
+// recognizable element before attempting to click, instead of one
+// immediate attempt.
 // ---------------------------------------------------------------------------
 export async function approveTx({ port, extensionId, timeoutMs = 20000 }) {
   const popup = await waitForTarget(
@@ -310,6 +322,7 @@ export async function approveTx({ port, extensionId, timeoutMs = 20000 }) {
   );
   const { cdp, ws } = await attach(popup);
   try {
+    await sleepUntil(async () => (await evaluate(cdp, `document.querySelectorAll('[data-testid]').length`)) > 0, 8000);
     const clicked = await clickFirstMatch(cdp, [
       '[data-testid="confirm-footer-button"]',
       '[data-testid="page-container-footer-next"]',
