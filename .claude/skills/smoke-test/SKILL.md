@@ -268,12 +268,27 @@ writes the address/ABI into `packages/nextjs/contracts/
 deployedContracts.ts` (chain id `412346`) — the file the Next.js scaffold
 hooks (`useScaffoldReadContract`/`useScaffoldWriteContract`) read from.
 
-Assertion — all three must hold:
+**The address used below MUST come from THIS run's own `yarn deploy`
+stdout** (`printDeployedAddresses()` prints `Address: 0x...` / `Tx Hash:
+0x...`), not read directly out of `deployments/412346_latest.json` or
+`deployedContracts.ts` on trust. Those two files are designed to survive a
+FAIL/INCONCLUSIVE run (Step 8 only deletes them on PASS — see "Common
+Mistakes"), so a run whose `yarn deploy` exits 0 without actually
+rewriting them would otherwise silently re-verify a PREVIOUS run's
+deployment and report PASS on stale evidence — the same failure shape as
+trusting a non-empty directory as proof of an initialised vault, or a
+present Keychain entry as proof of a correct password (see
+`cdp-with-wallet/SKILL.md`).
+
+Assertion — capture `yarn deploy`'s own stdout, then all four must hold:
 
 ```bash
 test -f packages/stylus/deployments/412346_latest.json
 grep -q '"your-contract"' packages/nextjs/contracts/deployedContracts.ts
 grep -q '412346' packages/nextjs/contracts/deployedContracts.ts
+# Cross-check: the persisted files' address must equal what THIS run's own
+# stdout just printed -- not merely that a plausible-looking value exists.
+[ "$(grep -m1 '^Address:' <deploy-stdout>)" = "Address: $(node -e "console.log(JSON.parse(require('fs').readFileSync('packages/stylus/deployments/412346_latest.json','utf8'))['your-contract'].address)")" ]
 ```
 
 - `yarn` itself missing, or `.env`/network resolution errors before any
@@ -281,7 +296,13 @@ grep -q '412346' packages/nextjs/contracts/deployedContracts.ts
 - `cargo stylus deploy` exits non-zero, or exits 0 but
   `deployedContracts.ts` doesn't contain the new entry (export-abi step
   silently failed) → **(c) RAN and failed**.
-- All three checks pass → **(a)**.
+- The persisted files exist and mention the right chain/contract name, but
+  the address does not match this run's own stdout (or stdout could not be
+  parsed at all) → **(c) RAN and failed** — treat this exactly like a
+  regular assertion failure, not a softer "probably fine" case. This is
+  the one check most likely to get silently simplified back to a bare
+  `test -f` in a future edit; don't.
+- All four checks pass, including the cross-check → **(a)**.
 
 ## Step 5 — Deploy a >24KB (multi-fragment) contract
 
