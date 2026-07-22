@@ -15,11 +15,19 @@
 // Usage:
 //   node .claude/skills/cdp-with-wallet/preflight.mjs
 //
-// Exit codes:
-//   0 - every prerequisite satisfied, skill is ready to run
-//   1 - one or more prerequisites are missing (see per-check SKIP lines above
-//       the summary for the exact fix). This is NOT a crash -- it is the
-//       expected result on a machine that hasn't been onboarded yet.
+// Exit codes -- three-way, not binary (adopted from scaffold-stark,
+// 2026-07-22): a bare 0/1 conflates "this machine is missing a real
+// prerequisite" with "the network hiccuped just now", and a gate that goes
+// red on things nobody controls is a gate people learn to ignore.
+//   0 - GREEN:  every prerequisite satisfied, skill is ready to run.
+//   1 - RED:    at least one real, fixable prerequisite is missing (no
+//       vault, no/wrong Keychain entry, MetaMask not installed, etc) --
+//       see per-check SKIP lines above the summary for the exact fix. This
+//       is NOT a crash, and callers SHOULD block on it.
+//   2 - INFRA:  every SKIP is environmental (Sepolia RPC unreachable,
+//       another Chrome window holding the debug profile) -- not a defect
+//       in this machine's setup, may resolve on its own. Callers MAY choose
+//       not to block on this one, e.g. retry rather than hard-fail CI.
 //
 // Env var overrides (for testing the absent case WITHOUT touching the real
 // profile/Keychain/env file -- never delete or edit the real ones to test
@@ -65,12 +73,34 @@ function mainCheckoutRoot() {
   }
 }
 
-const results = []; // { name, status: "OK"|"SKIP", detail, fix }
-function record(name, status, detail, fix) {
-  results.push({ name, status, detail, fix });
+// Three-way exit classification (adopted from scaffold-stark, 2026-07-22):
+// a SKIP is not one thing. "No vault initialised" and "Sepolia RPC
+// unreachable" look identical as a bare exit(1) -- but the first is a real,
+// fixable machine-setup gap (RED) and the second may just be a transient
+// network blip or someone else's Chrome window (INFRA). Collapsing them into
+// one exit code means a caller either blocks on both (and learns to ignore
+// the gate when infra flakes) or blocks on neither (and misses a genuine
+// setup problem). category defaults to "RED" -- only the specific checks
+// that are about environment/timing rather than this machine's own
+// configuration pass "INFRA" explicitly.
+const results = []; // { name, status: "OK"|"SKIP", detail, fix, category }
+function record(name, status, detail, fix, category = "RED") {
+  results.push({ name, status, detail, fix, category });
   const line = `[${status}] ${name} -- ${detail}`;
   console.log(line);
   if (status === "SKIP") console.log(`  fix: ${fix}`);
+}
+
+// withChromeOnRealProfile() throws one specific, named error for "someone
+// else's Chrome is currently holding this profile" (see its own comment) --
+// that's a transient state a human closing a window fixes, not a machine
+// mis-setup, so it gets INFRA rather than RED. Every other failure out of
+// that helper (Chrome crashed, CDP never came up for an unknown reason,
+// extension never registered a service worker) stays RED: those indicate
+// something is actually broken about this machine's Chrome/extension setup,
+// not just bad timing.
+function categoryForChromeError(err) {
+  return /already using this profile/.test(err.message) ? "INFRA" : "RED";
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +188,7 @@ async function checkVaultInitialised() {
     // Any failure here (Chrome missing, CDP never came up, extension never
     // registered a service worker) is reported as SKIP with the raw error --
     // this check must never crash the whole preflight run.
-    record(name, "SKIP", `could not verify live (${err.message})`, fixMsg);
+    record(name, "SKIP", `could not verify live (${err.message})`, fixMsg, categoryForChromeError(err));
     return false;
   }
 
@@ -368,7 +398,13 @@ async function checkKeychainEntry(vaultOk) {
           `provisioned, the MetaMask password later during onboarding -- so nothing keeps them in sync automatically.`,
       );
     } else {
-      record(name, "SKIP", `could not verify live (${err.message})`, `Investigate the error above; this is not a missing-prerequisite case.`);
+      record(
+        name,
+        "SKIP",
+        `could not verify live (${err.message})`,
+        `Investigate the error above; this is not a missing-prerequisite case.`,
+        categoryForChromeError(err),
+      );
     }
     return false;
   }
@@ -414,7 +450,12 @@ async function checkSepoliaRpc() {
     record(name, "OK", `${rpcUrl} reachable, chainId=0x66eee`);
     return true;
   } catch (err) {
-    record(name, "SKIP", `RPC_URL_SEPOLIA set but unreachable (${err.message})`, `Check connectivity / the URL itself. ${fixMsg}`);
+    // Unreachable is the canonical INFRA case: a transient network blip, a
+    // rate limit, or the public endpoint being temporarily down are not
+    // this machine's fault and often resolve on their own -- unlike a wrong
+    // chainId or a blank .env value above, which are real misconfiguration
+    // (RED, the default).
+    record(name, "SKIP", `RPC_URL_SEPOLIA set but unreachable (${err.message})`, `Check connectivity / the URL itself. ${fixMsg}`, "INFRA");
     return false;
   }
 }
@@ -435,12 +476,29 @@ async function main() {
 
   console.log("");
   const skipped = results.filter(r => r.status === "SKIP");
-  if (skipped.length) {
-    console.log(`NOT READY: ${skipped.length}/${results.length} prerequisite(s) missing (see SKIP lines above for exact fixes).`);
+  const redSkips = skipped.filter(r => r.category === "RED");
+  const infraSkips = skipped.filter(r => r.category === "INFRA");
+
+  if (!skipped.length) {
+    console.log(`READY (exit 0): all ${results.length} prerequisites satisfied.`);
+    process.exit(0);
+  }
+  if (redSkips.length) {
+    // RED wins even if INFRA skips are ALSO present -- a real setup gap
+    // needs fixing regardless of what else happened to be flaky this run.
+    console.log(
+      `NOT READY (exit 1, RED): ${redSkips.length} real problem(s) to fix` +
+        (infraSkips.length ? ` (plus ${infraSkips.length} environmental issue(s), see below)` : "") +
+        ` -- see SKIP lines above for exact fixes.`,
+    );
     process.exit(1);
   }
-  console.log(`READY: all ${results.length} prerequisites satisfied.`);
-  process.exit(0);
+  console.log(
+    `NOT READY (exit 2, INFRA): ${infraSkips.length} environmental issue(s) -- not a code or config defect on this ` +
+      `machine, may resolve on retry (network blip, another Chrome window, rate limit). Callers may choose not to ` +
+      `block on this exit code.`,
+  );
+  process.exit(2);
 }
 
 main();

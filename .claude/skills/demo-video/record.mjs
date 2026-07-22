@@ -20,17 +20,27 @@
 // and .claude/skills/cdp-with-wallet/*.mjs.
 //
 // Usage:
-//   node record.mjs all        -- take1, then take2, then cleanup (default)
-//   node record.mjs take1      -- terminal take only (no cleanup -- leaves
-//                                  deployedContracts.ts with the Sepolia
-//                                  entry on purpose, for a manual take2)
-//   node record.mjs take2      -- browser take only (assumes take1 already
-//                                  ran and deployedContracts.ts has the
-//                                  Sepolia entry)
+//   node record.mjs all --branch=<name> [--pr=<number>]
+//                              -- take1, then take2, then cleanup (default)
+//   node record.mjs take1 --branch=<name>
+//                              -- terminal take only (no cleanup -- leaves
+//                                 deployedContracts.ts with the Sepolia
+//                                 entry on purpose, for a manual take2)
+//   node record.mjs take2 --branch=<name>
+//                              -- browser take only (assumes take1 already
+//                                 ran and deployedContracts.ts has the
+//                                 Sepolia entry)
 //   node record.mjs cleanup    -- restore scaffold.config.ts /
-//                                  deployedContracts.ts, kill any leaked
-//                                  frontend/Chrome -- the escape hatch if a
-//                                  run crashed mid-flight
+//                                 deployedContracts.ts, kill any leaked
+//                                 frontend/Chrome -- the escape hatch if a
+//                                 run crashed mid-flight
+//
+// --branch is REQUIRED for all/take1/take2 (see requireStatedBranch() below
+// for why: a demo recorded from the wrong branch looks completely valid and
+// is silently worthless -- this cost a full recording cycle on 2026-07-22,
+// see SKILL.md). DEMO_VIDEO_BRANCH env var works the same as --branch.
+// --pr=<number> lets the proof block (see buildProofBlock()) get posted as
+// a PR comment automatically; without it, the block is only printed.
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -74,6 +84,60 @@ function mainCheckoutRoot() {
 
 function worktreeRoot() {
   return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: process.cwd(), encoding: "utf8" }).trim();
+}
+
+function parseCliFlag(name) {
+  const prefix = `--${name}=`;
+  const arg = process.argv.find(a => a.startsWith(prefix));
+  return arg ? arg.slice(prefix.length) : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Base-branch preflight -- THE LESSON from 2026-07-22: this skill was built
+// and run without ever stating which branch it was recording from. Take 2
+// was recorded from `main`, which still had the Uniswap price-fetch feature
+// and none of the ENS/pagination fixes that had already landed on
+// release/phase-1 -- a fully valid-looking, watchable video that quietly
+// proved the wrong code. A demo video is only worth anything if it's
+// unambiguous what it was recorded from, and a script cannot infer intent
+// from `git branch --show-current` alone (that only says what happens to be
+// checked out, not what the operator MEANT to demo). So: refuse to record
+// at all until the target branch is stated explicitly (--branch=<name> or
+// DEMO_VIDEO_BRANCH), and require it to match what's actually checked out --
+// catching the second-order mistake of stating one branch while sitting on
+// another. Same SKIP-not-fail contract as smoke-test's other gates.
+// ---------------------------------------------------------------------------
+function requireStatedBranch(cwd) {
+  const actualBranch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd, encoding: "utf8" }).trim();
+  const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
+  const subject = execFileSync("git", ["log", "-1", "--format=%s"], { cwd, encoding: "utf8" }).trim();
+
+  const stated = parseCliFlag("branch") || process.env.DEMO_VIDEO_BRANCH;
+  if (!stated) {
+    console.error(
+      `SKIPPED -- no target branch stated.\n` +
+        `This skill refuses to record until you say which branch you mean to demo\n` +
+        `(a recording from the wrong branch looks completely valid and is silently\n` +
+        `worthless -- see SKILL.md).\n\n` +
+        `Currently checked out: ${actualBranch} @ ${sha.slice(0, 7)} (${subject})\n\n` +
+        `Re-run with: --branch=${actualBranch}   (or set DEMO_VIDEO_BRANCH=${actualBranch})\n` +
+        `if that IS the branch you mean to demo, or check out the right one first.`,
+    );
+    process.exit(3);
+  }
+  if (stated !== actualBranch) {
+    console.error(
+      `SKIPPED -- stated branch does not match what's checked out.\n` +
+        `  stated:        ${stated}\n` +
+        `  checked out:   ${actualBranch} @ ${sha.slice(0, 7)} (${subject})\n` +
+        `Check out '${stated}' first, or re-run with --branch=${actualBranch} if that's what you actually mean to demo.`,
+    );
+    process.exit(3);
+  }
+
+  const source = { branch: actualBranch, sha, shortSha: sha.slice(0, 7), subject };
+  console.log(`Recording from branch '${source.branch}' @ ${source.shortSha} (${source.subject})`);
+  return source;
 }
 
 // Regex-per-key extraction, matching preflight.mjs's own style -- no dotenv
@@ -136,17 +200,29 @@ async function waitFor(cdp, expression, timeoutMs, description = expression) {
 
 const STEP9_SCRIPT_PATH = path.join(HERE, "step9.sh");
 
-async function take1({ outDir, cwd, checkoutRoot }) {
+async function take1({ outDir, cwd, checkoutRoot, recordingSource }) {
   const envVars = readStylusEnv(checkoutRoot);
   const resultPath = path.join(os.tmpdir(), `demo-video-step9-result-${process.pid}.json`);
 
   const castPath = path.join(outDir, "take1-terminal-sepolia-deploy.cast");
   const gifPath = path.join(outDir, "take1-terminal-sepolia-deploy.gif");
+  const title = `demo-video take1 -- ${recordingSource.branch}@${recordingSource.shortSha}`;
 
   console.log(`[take1] recording -> ${castPath}`);
   const rec = spawnSync(
     "asciinema",
-    ["record", "--command", `bash ${STEP9_SCRIPT_PATH}`, "--output-format", "asciicast-v3", "--return", "--overwrite", castPath],
+    [
+      "record",
+      "--command",
+      `bash ${STEP9_SCRIPT_PATH}`,
+      "--output-format",
+      "asciicast-v3",
+      "--title",
+      title,
+      "--return",
+      "--overwrite",
+      castPath,
+    ],
     {
       cwd,
       stdio: "inherit",
@@ -172,6 +248,29 @@ async function take1({ outDir, cwd, checkoutRoot }) {
     console.log(`[take1] converting to GIF -> ${gifPath}`);
     execFileSync("agg", [castPath, gifPath], { stdio: "inherit" });
     gifSize = fs.statSync(gifPath).size;
+
+    // demo-video's OWN staleness exposure, distinct from step9.sh's: Take 2
+    // reads packages/nextjs/contracts/deployedContracts.ts to decide what
+    // the frontend shows, not the deployments/*.json step9.sh already
+    // cross-checked. deploy_contract.ts writes both files in the same
+    // invocation, but only as two separate steps (deploy, then a SEPARATE
+    // export-abi + write-deployedContracts.ts step) -- if the second step
+    // silently no-ops while the first succeeds, deployedContracts.ts could
+    // still hold a stale address from a previous run even though
+    // deployments/421614_latest.json (and step9.sh's cross-check of it) is
+    // genuinely fresh. Confirm the address Take 2 will actually render
+    // matches the address this run just deployed, before calling it PASS.
+    const deployedContractsPath = path.join(cwd, "packages", "nextjs", "contracts", "deployedContracts.ts");
+    const deployedContractsText = fs.readFileSync(deployedContractsPath, "utf8");
+    if (!result.address || !deployedContractsText.includes(result.address)) {
+      console.error(
+        `[take1] FAIL -- deployedContracts.ts does not contain this run's deployed address (${result.address}); ` +
+          `Take 2 would render a stale contract. Not treating this as PASS.`,
+      );
+      result = { ...result, status: "FAIL", reason: "deployedContracts.ts stale relative to this run's deploy" };
+    } else {
+      console.log(`[take1] deployedContracts.ts cross-checked against this run's address (${result.address})`);
+    }
   } else {
     console.log(`[take1] status=${result.status}, skipping GIF conversion`);
   }
@@ -235,7 +334,7 @@ async function startScreencastCapture(cdp, framesDir, { format = "png", maxWidth
   };
 }
 
-function assembleVideo(frames, outPath, endTimestamp) {
+function assembleVideo(frames, outPath, endTimestamp, recordingSource) {
   if (frames.length === 0) throw new Error("No screencast frames captured -- nothing to assemble into a video");
   const concatPath = `${outPath}.concat.txt`;
   const lines = ["ffconcat version 1.0"];
@@ -262,9 +361,27 @@ function assembleVideo(frames, outPath, endTimestamp) {
   lines.push(`file '${frames[frames.length - 1].file}'`);
   fs.writeFileSync(concatPath, `${lines.join("\n")}\n`);
 
-  execFileSync("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", concatPath, "-vsync", "vfr", "-pix_fmt", "yuv420p", outPath], {
-    stdio: "inherit",
-  });
+  const comment = `demo-video take2 -- recorded from ${recordingSource.branch}@${recordingSource.shortSha} (${recordingSource.subject})`;
+  execFileSync(
+    "ffmpeg",
+    [
+      "-y",
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      concatPath,
+      "-vsync",
+      "vfr",
+      "-pix_fmt",
+      "yuv420p",
+      "-metadata",
+      `comment=${comment}`,
+      outPath,
+    ],
+    { stdio: "inherit" },
+  );
   fs.rmSync(concatPath, { force: true });
 }
 
@@ -287,7 +404,7 @@ async function tryScrapeTxHashLink(cdp) {
   ).catch(() => null);
 }
 
-async function take2({ outDir, cwd }) {
+async function take2({ outDir, cwd, checkoutRoot, contractAddress, recordingSource }) {
   const configPath = path.join(cwd, "packages", "nextjs", "scaffold.config.ts");
   const originalConfig = fs.readFileSync(configPath, "utf8");
   const NITRO = "targetNetworks: [chains.arbitrumNitro]";
@@ -352,138 +469,192 @@ async function take2({ outDir, cwd }) {
     const wallStart = Date.now();
     console.log(`[take2] screencast started`);
 
-    const alreadyConnected = await evaluate(dappCdp, `!document.querySelector('[data-testid="connect-wallet"]')`);
-    if (!alreadyConnected) {
-      const { accounts } = await connect({ port: cdpPort, extensionId: METAMASK_EXTENSION_ID, dappCdp });
-      if (!accounts?.length) throw new Error("connect() returned no accounts");
-      console.log(`[take2] connected: ${accounts[0]}`);
-    } else {
-      console.log(`[take2] already connected`);
-    }
-
-    await waitFor(dappCdp, `!document.querySelector('[data-testid="connect-wallet"]')`, 20000, "UI reflects connected state (connect-wallet button gone)");
-
-    // MEASURED (2026-07-22): a fresh connect() only gets accounts -- it does
-    // NOT put MetaMask on Arbitrum Sepolia. The debug profile's MetaMask
-    // instance was left on whatever chain a prior session used (observed:
-    // 0x1, mainnet) and the dapp rendered its "Wrong network" banner with
-    // write-function-submit disabled, even though accounts were connected.
-    // wallet_addEthereumChain, called the same way connect() discovers the
-    // EIP-6963 provider, both adds (if missing) AND switches -- MEASURED: on
-    // an already-added chain (this profile added 0x66eee during
-    // cdp-with-wallet's own onboarding proof) it resolved with NO
-    // confirmation popup at all, silently switching; approveTx() is still
-    // raced defensively below in case a popup DOES appear (e.g. a chain not
-    // yet added, or a not-yet-trusted origin), matching SKILL.md's
-    // documented add-network flow.
-    const switchResult = await evaluate(
-      dappCdp,
-      `(async () => {
-        const providers = [];
-        function onAnnounce(event) { providers.push(event.detail); }
-        window.addEventListener("eip6963:announceProvider", onAnnounce);
-        window.dispatchEvent(new Event("eip6963:requestProvider"));
-        await new Promise(r => setTimeout(r, 500));
-        window.removeEventListener("eip6963:announceProvider", onAnnounce);
-        const match = providers.find(p => p.info?.rdns === "io.metamask");
-        if (!match) return { error: "no EIP-6963 provider announced rdns=io.metamask" };
-        try {
-          await match.provider.request({ method: "wallet_addEthereumChain", params: [{
-            chainId: "0x66eee",
-            chainName: "Arbitrum Sepolia",
-            nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-            rpcUrls: ["https://sepolia-rollup.arbitrum.io/rpc"],
-            blockExplorerUrls: ["https://sepolia.arbiscan.io"],
-          }] });
-          return { switched: true };
-        } catch (e) {
-          return { error: e.message };
-        }
-      })()`,
-    );
-    if (switchResult?.error) throw new Error(`wallet_addEthereumChain failed: ${switchResult.error}`);
-    console.log(`[take2] network switch result: ${JSON.stringify(switchResult)}`);
-    // Best-effort: a popup only appears for a not-yet-trusted chain/origin.
-    await approveTx({ port: cdpPort, extensionId: METAMASK_EXTENSION_ID, timeoutMs: 3000 }).catch(() => {});
-
-    await waitFor(
-      dappCdp,
-      `!document.querySelector('[data-testid="write-function-submit"]')?.disabled`,
-      20000,
-      "UI reflects correct network (write-function-submit enabled)",
-    );
-
-    const newGreeting = `demo-video ${new Date().toISOString()}`;
-    await evaluate(
-      dappCdp,
-      `(() => {
-        const form = document.querySelector('[data-testid="write-function-form-setGreeting"]');
-        const input = form.querySelector('[data-testid="function-input"]');
-        input.focus();
-        return document.activeElement === input;
-      })()`,
-    );
-    // Input.insertText, not input.value = x -- React shadows the native
-    // setter (see browser-e2e.mjs's own Common Mistakes section); this is
-    // the same technique metamask.mjs uses for the exact same reason.
-    await dappCdp.send("Input.insertText", { text: newGreeting });
-    const clicked = await evaluate(
-      dappCdp,
-      `(() => {
-        const form = document.querySelector('[data-testid="write-function-form-setGreeting"]');
-        const btn = form.querySelector('[data-testid="write-function-submit"]');
-        if (!btn || btn.disabled) return false;
-        btn.click();
-        return true;
-      })()`,
-    );
-    if (!clicked) throw new Error("Could not click write-function-submit");
-    console.log(`[take2] submitted setGreeting("${newGreeting}")`);
-
-    await approveTx({ port: cdpPort, extensionId: METAMASK_EXTENSION_ID });
-    console.log(`[take2] approved transaction in MetaMask`);
-
-    const expected = JSON.stringify(newGreeting); // displayed value is JSON.stringify()'d, per browser-e2e.mjs precedent
-    let txLink = null;
-    const deadline = Date.now() + 60000;
-    let readBack = false;
-    while (Date.now() < deadline) {
-      if (!txLink) txLink = await tryScrapeTxHashLink(dappCdp);
-      const val = await evaluate(
-        dappCdp,
-        `document.querySelector('[data-testid="display-variable-greeting"] [data-testid="display-variable-value"]')?.textContent || ""`,
-      ).catch(() => "");
-      if (val === expected) {
-        readBack = true;
-        break;
+    // From here on, ANY failure still gets whatever frames were captured
+    // assembled and saved -- a partial recording someone can look at and
+    // say "it stops here, that's the bug" beats a clean failure with zero
+    // artifact. Only the setup above (frontend/Chrome/unlock, before there
+    // is anything on screen worth keeping) has no such fallback.
+    try {
+      const alreadyConnected = await evaluate(dappCdp, `!document.querySelector('[data-testid="connect-wallet"]')`);
+      if (!alreadyConnected) {
+        const { accounts } = await connect({ port: cdpPort, extensionId: METAMASK_EXTENSION_ID, dappCdp });
+        if (!accounts?.length) throw new Error("connect() returned no accounts");
+        console.log(`[take2] connected: ${accounts[0]}`);
+      } else {
+        console.log(`[take2] already connected`);
       }
-      await sleep(400);
+
+      await waitFor(dappCdp, `!document.querySelector('[data-testid="connect-wallet"]')`, 20000, "UI reflects connected state (connect-wallet button gone)");
+
+      // MEASURED (2026-07-22): a fresh connect() only gets accounts -- it does
+      // NOT put MetaMask on Arbitrum Sepolia. The debug profile's MetaMask
+      // instance was left on whatever chain a prior session used (observed:
+      // 0x1, mainnet) and the dapp rendered its "Wrong network" banner with
+      // write-function-submit disabled, even though accounts were connected.
+      // wallet_addEthereumChain, called the same way connect() discovers the
+      // EIP-6963 provider, both adds (if missing) AND switches -- MEASURED: on
+      // an already-added chain (this profile added 0x66eee during
+      // cdp-with-wallet's own onboarding proof) it resolved with NO
+      // confirmation popup at all, silently switching; approveTx() is still
+      // raced defensively below in case a popup DOES appear (e.g. a chain not
+      // yet added, or a not-yet-trusted origin), matching SKILL.md's
+      // documented add-network flow.
+      const switchResult = await evaluate(
+        dappCdp,
+        `(async () => {
+          const providers = [];
+          function onAnnounce(event) { providers.push(event.detail); }
+          window.addEventListener("eip6963:announceProvider", onAnnounce);
+          window.dispatchEvent(new Event("eip6963:requestProvider"));
+          await new Promise(r => setTimeout(r, 500));
+          window.removeEventListener("eip6963:announceProvider", onAnnounce);
+          const match = providers.find(p => p.info?.rdns === "io.metamask");
+          if (!match) return { error: "no EIP-6963 provider announced rdns=io.metamask" };
+          try {
+            await match.provider.request({ method: "wallet_addEthereumChain", params: [{
+              chainId: "0x66eee",
+              chainName: "Arbitrum Sepolia",
+              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+              rpcUrls: ["https://sepolia-rollup.arbitrum.io/rpc"],
+              blockExplorerUrls: ["https://sepolia.arbiscan.io"],
+            }] });
+            return { switched: true };
+          } catch (e) {
+            return { error: e.message };
+          }
+        })()`,
+      );
+      if (switchResult?.error) throw new Error(`wallet_addEthereumChain failed: ${switchResult.error}`);
+      console.log(`[take2] network switch result: ${JSON.stringify(switchResult)}`);
+      // Best-effort: a popup only appears for a not-yet-trusted chain/origin.
+      await approveTx({ port: cdpPort, extensionId: METAMASK_EXTENSION_ID, timeoutMs: 3000 }).catch(() => {});
+
+      await waitFor(
+        dappCdp,
+        `!document.querySelector('[data-testid="write-function-submit"]')?.disabled`,
+        20000,
+        "UI reflects correct network (write-function-submit enabled)",
+      );
+
+      const newGreeting = `demo-video ${new Date().toISOString()}`;
+      await evaluate(
+        dappCdp,
+        `(() => {
+          const form = document.querySelector('[data-testid="write-function-form-setGreeting"]');
+          const input = form.querySelector('[data-testid="function-input"]');
+          input.focus();
+          return document.activeElement === input;
+        })()`,
+      );
+      // Input.insertText, not input.value = x -- React shadows the native
+      // setter (see browser-e2e.mjs's own Common Mistakes section); this is
+      // the same technique metamask.mjs uses for the exact same reason.
+      await dappCdp.send("Input.insertText", { text: newGreeting });
+      const clicked = await evaluate(
+        dappCdp,
+        `(() => {
+          const form = document.querySelector('[data-testid="write-function-form-setGreeting"]');
+          const btn = form.querySelector('[data-testid="write-function-submit"]');
+          if (!btn || btn.disabled) return false;
+          btn.click();
+          return true;
+        })()`,
+      );
+      if (!clicked) throw new Error("Could not click write-function-submit");
+      console.log(`[take2] submitted setGreeting("${newGreeting}")`);
+
+      await approveTx({ port: cdpPort, extensionId: METAMASK_EXTENSION_ID });
+      console.log(`[take2] approved transaction in MetaMask`);
+
+      const expected = JSON.stringify(newGreeting); // displayed value is JSON.stringify()'d, per browser-e2e.mjs precedent
+      let txLink = null;
+      const deadline = Date.now() + 60000;
+      let readBack = false;
+      while (Date.now() < deadline) {
+        if (!txLink) txLink = await tryScrapeTxHashLink(dappCdp);
+        const val = await evaluate(
+          dappCdp,
+          `document.querySelector('[data-testid="display-variable-greeting"] [data-testid="display-variable-value"]')?.textContent || ""`,
+        ).catch(() => "");
+        if (val === expected) {
+          readBack = true;
+          break;
+        }
+        await sleep(400);
+      }
+      if (!readBack) throw new Error(`Timed out waiting for greeting() read-back to equal ${expected}`);
+      console.log(`[take2] read-back confirmed: greeting() == ${newGreeting}`);
+
+      // Independent on-chain read-back -- not just the dapp's own UI reading
+      // its own write back to itself, but a fresh `cast call` against the RPC,
+      // the same proof shape Step 9e uses. This is what makes the video a
+      // claim a reviewer can check, not just a recording of the UI agreeing
+      // with itself (see SKILL.md "Why the proof block exists").
+      let onChainReadBack = null;
+      if (contractAddress) {
+        const { RPC_URL_SEPOLIA } = readStylusEnv(checkoutRoot);
+        if (RPC_URL_SEPOLIA) {
+          try {
+            onChainReadBack = execFileSync(
+              "cast",
+              ["call", contractAddress, "greeting()(string)", "--rpc-url", RPC_URL_SEPOLIA],
+              { encoding: "utf8" },
+            ).trim();
+            console.log(`[take2] independent on-chain read-back: ${onChainReadBack}`);
+          } catch (err) {
+            console.error(`[take2] independent on-chain read-back failed (non-fatal): ${err.message}`);
+          }
+        }
+      }
+
+      await sleep(1500); // let the final state settle on screen before stopping
+      const frames = await capture.stop();
+      const wallEnd = Date.now();
+      console.log(`[take2] screencast stopped, ${frames.length} frame(s) captured`);
+
+      const videoPath = path.join(outDir, "take2-browser-wallet-tx.mp4");
+      assembleVideo(frames, videoPath, frames.length ? wallEnd / 1000 : 0, recordingSource);
+      fs.rmSync(framesDir, { recursive: true, force: true });
+
+      const videoDurationSeconds = ffprobeDuration(videoPath);
+      const wallClockSeconds = (wallEnd - wallStart) / 1000;
+
+      return {
+        status: "PASS",
+        newGreeting,
+        txLink,
+        onChainReadBack,
+        videoPath,
+        videoSize: fs.statSync(videoPath).size,
+        videoDurationSeconds,
+        wallClockSeconds,
+        frameCount: frames.length,
+      };
+    } catch (err) {
+      const frames = await capture.stop().catch(() => []);
+      if (frames.length > 0) {
+        try {
+          const videoPath = path.join(outDir, "take2-browser-wallet-tx.mp4");
+          assembleVideo(frames, videoPath, Date.now() / 1000, recordingSource);
+          fs.rmSync(framesDir, { recursive: true, force: true });
+          const videoDurationSeconds = ffprobeDuration(videoPath);
+          console.error(`[take2] FAILED after capturing ${frames.length} frame(s) -- partial video saved: ${videoPath}`);
+          console.error(`[take2] failure: ${err.message}`);
+          return {
+            status: "FAIL",
+            error: err.message,
+            partial: true,
+            videoPath,
+            videoSize: fs.statSync(videoPath).size,
+            videoDurationSeconds,
+            frameCount: frames.length,
+          };
+        } catch (assembleErr) {
+          console.error(`[take2] could not assemble partial video either: ${assembleErr.message}`);
+        }
+      }
+      throw err;
     }
-    if (!readBack) throw new Error(`Timed out waiting for greeting() read-back to equal ${expected}`);
-    console.log(`[take2] read-back confirmed: greeting() == ${newGreeting}`);
-
-    await sleep(1500); // let the final state settle on screen before stopping
-    const frames = await capture.stop();
-    const wallEnd = Date.now();
-    console.log(`[take2] screencast stopped, ${frames.length} frame(s) captured`);
-
-    const videoPath = path.join(outDir, "take2-browser-wallet-tx.mp4");
-    assembleVideo(frames, videoPath, frames.length ? wallEnd / 1000 : 0);
-    fs.rmSync(framesDir, { recursive: true, force: true });
-
-    const videoDurationSeconds = ffprobeDuration(videoPath);
-    const wallClockSeconds = (wallEnd - wallStart) / 1000;
-
-    return {
-      status: "PASS",
-      newGreeting,
-      txLink,
-      videoPath,
-      videoSize: fs.statSync(videoPath).size,
-      videoDurationSeconds,
-      wallClockSeconds,
-      frameCount: frames.length,
-    };
   } finally {
     if (chrome) {
       const cdpPortForTeardown = chrome.port;
@@ -539,6 +710,78 @@ function cleanupAll({ cwd, baselineDirty }) {
 }
 
 // ---------------------------------------------------------------------------
+// Proof block -- WHY this exists: a video on its own proves nothing. It is a
+// recording of pixels; nobody reviewing a PR can independently verify a
+// claim from watching one. The tx hashes, the arbiscan links, and the raw
+// on-chain read-back ARE the actual proof -- a reviewer can paste a hash
+// into arbiscan or run `cast call` themselves and get the same answer this
+// skill got. That evidence is only useful if it travels WITH the PR
+// automatically; a human copying hashes around after the fact is exactly
+// the step that gets skipped under time pressure and forgotten. So this
+// skill emits a ready-to-paste block after every successful run, and posts
+// it to the PR itself when one is identified, rather than only printing it
+// for a human to relay.
+//
+// KNOWN LIMITATION, stated plainly rather than worked around: the `gh` CLI
+// cannot attach video/image files to a PR body or comment -- only text
+// (links, hashes) travels this way. The actual .mp4/.gif files still need a
+// human to drag them into the GitHub web UI (a PR comment box, or a release
+// asset). This block carries everything EXCEPT the media itself.
+// ---------------------------------------------------------------------------
+function buildProofBlock({ recordingSource, take1, take2 }) {
+  const lines = [];
+  lines.push(`### demo-video proof`);
+  lines.push("");
+  lines.push(`Recorded from \`${recordingSource.branch}\` @ \`${recordingSource.sha}\` (${recordingSource.subject}).`);
+  lines.push("");
+  if (take1?.status === "PASS") {
+    lines.push(`**Take 1 -- terminal (Sepolia deploy, smoke-test Step 9):**`);
+    lines.push(`- Contract: \`${take1.address}\``);
+    lines.push(`- Deploy tx: \`${take1.txHash}\` -- https://sepolia.arbiscan.io/tx/${take1.txHash}`);
+    lines.push("");
+  }
+  if (take2?.status === "PASS") {
+    lines.push(`**Take 2 -- browser (connect wallet + write tx):**`);
+    if (take2.txLink) lines.push(`- Write tx: ${take2.txLink}`);
+    lines.push(`- New value written: \`${take2.newGreeting}\``);
+    if (take2.onChainReadBack) lines.push(`- Independent on-chain read-back (\`cast call ... greeting()\`): ${take2.onChainReadBack}`);
+    lines.push(`- Video duration ${take2.videoDurationSeconds}s vs. wall-clock run duration ${take2.wallClockSeconds}s (should match -- see SKILL.md "the frame-timing trap")`);
+    lines.push("");
+  }
+  lines.push(
+    `_Video files (\`.mp4\`/\`.gif\`) are not attached here -- \`gh\` cannot attach media to a PR body/comment. ` +
+      `Upload them through the GitHub web UI (this comment's edit box, or a release asset) separately; ` +
+      `everything above is independently verifiable without them._`,
+  );
+  return lines.join("\n");
+}
+
+function postProofBlock(cwd, block, prNumber) {
+  let targetPr = prNumber;
+  if (!targetPr) {
+    try {
+      targetPr = execFileSync("gh", ["pr", "view", "--json", "number", "-q", ".number"], { cwd, encoding: "utf8" }).trim();
+    } catch {
+      console.log(`[proof] no --pr given and no PR found for the current branch -- printing only, not posting.`);
+    }
+  }
+  if (!targetPr) return null;
+
+  const tmpPath = path.join(os.tmpdir(), `demo-video-proof-${process.pid}.md`);
+  fs.writeFileSync(tmpPath, block);
+  try {
+    execFileSync("gh", ["pr", "comment", String(targetPr), "--body-file", tmpPath], { cwd, stdio: "inherit" });
+    console.log(`[proof] posted to PR #${targetPr} via 'gh pr comment'.`);
+    return targetPr;
+  } catch (err) {
+    console.error(`[proof] could not post to PR #${targetPr} (${err.message}) -- printing only.`);
+    return null;
+  } finally {
+    fs.rmSync(tmpPath, { force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 async function main() {
@@ -551,6 +794,16 @@ async function main() {
   const mode = process.argv[2] || "all";
   const report = { mode, outDir };
 
+  if (mode === "cleanup") {
+    cleanupAll({ cwd, baselineDirty: {} });
+    console.log(`\n=== FINAL REPORT ===`);
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+
+  const recordingSource = requireStatedBranch(cwd);
+  report.recordingSource = recordingSource;
+
   const baselineDirty = {
     "packages/nextjs/scaffold.config.ts": isDirty(cwd, "packages/nextjs/scaffold.config.ts"),
     "packages/nextjs/next-env.d.ts": isDirty(cwd, "packages/nextjs/next-env.d.ts"),
@@ -558,20 +811,27 @@ async function main() {
 
   try {
     if (mode === "take1" || mode === "all") {
-      report.take1 = await take1({ outDir, cwd, checkoutRoot });
+      report.take1 = await take1({ outDir, cwd, checkoutRoot, recordingSource });
       console.log(`[main] take1: ${JSON.stringify(report.take1, null, 2)}`);
       if (mode === "all" && report.take1.status !== "PASS") {
         console.log(`[main] take1 status=${report.take1.status}, skipping take2 (nothing deployed to show)`);
       }
     }
     if (mode === "take2" || (mode === "all" && report.take1?.status === "PASS")) {
-      report.take2 = await take2({ outDir, cwd });
+      report.take2 = await take2({ outDir, cwd, checkoutRoot, contractAddress: report.take1?.address, recordingSource });
       console.log(`[main] take2: ${JSON.stringify(report.take2, null, 2)}`);
     }
   } finally {
-    if (mode === "all" || mode === "cleanup") {
+    if (mode === "all") {
       cleanupAll({ cwd, baselineDirty });
     }
+  }
+
+  if (report.take1?.status === "PASS" || report.take2?.status === "PASS") {
+    const block = buildProofBlock({ recordingSource, take1: report.take1, take2: report.take2 });
+    console.log(`\n=== PROOF BLOCK (paste into the PR if not posted automatically) ===\n`);
+    console.log(block);
+    report.postedToPr = postProofBlock(cwd, block, parseCliFlag("pr"));
   }
 
   console.log(`\n=== FINAL REPORT ===`);
