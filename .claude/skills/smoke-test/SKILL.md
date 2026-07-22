@@ -743,24 +743,50 @@ Docker container, no frontend dev server, and binds no local port. It can
 be run on its own without the rest of this skill, and running it does not
 require Steps 1–8 to have passed (or even to have run).
 
-### Step 9a — Credentials gate (opt-in signal)
+### Step 9a — Tool gate (cast)
 
-`yarn deploy --network sepolia` reads `ACCOUNT_ADDRESS_SEPOLIA`,
-`RPC_URL_SEPOLIA`, and `PRIVATE_KEY_SEPOLIA` from `packages/stylus/.env`.
-Populating those three is itself the opt-in: no separate confirm flag is
-needed on top of them, matching the "SKIP by default" contract — a fresh
-clone's `.env.example` ships the whole `## sepolia` block blank, so this
-step SKIPs out of the box until an operator deliberately fills it in.
+Steps 1–8 already require `cast` (Foundry) — checked once, up front, by
+Step 0's `preflight.sh` (`check_cmd cast "install Foundry..."`), before
+Step 2 ever starts the devnode. Step 9 is designed to run standalone
+without Steps 1–8 having run at all (see above), so it cannot rely on
+that check having already happened — it re-checks for itself, with its
+own distinct SKIP reason, rather than letting a missing `cast` surface
+as a confusing failure three sub-steps later:
 
 ```bash
-ENV_FILE="packages/stylus/.env"
-env_key_present() {
-  [ -f "$ENV_FILE" ] && grep -Eq "^${1}=[^[:space:]]" "$ENV_FILE"
-}
+command -v cast >/dev/null 2>&1
+```
+
+- Missing → **SKIPPED — cast (Foundry) not installed.** Point at the same
+  install hint `preflight.sh` uses: `curl -L https://foundry.paradigm.xyz
+  | bash && foundryup`. This is not a failure and does not affect the
+  Steps 1–7 verdict.
+- Present → proceed to Step 9b.
+
+### Step 9b — Credentials gate (opt-in signal)
+
+`yarn deploy --network sepolia` reads `ACCOUNT_ADDRESS_SEPOLIA`,
+`RPC_URL_SEPOLIA`, and `PRIVATE_KEY_SEPOLIA` from `packages/stylus/.env`
+itself (via `dotenvConfig` in `packages/stylus/scripts/utils/network.ts`).
+Populating those three in `.env` is itself the opt-in: no separate
+confirm flag is needed on top of them, matching the "SKIP by default"
+contract — a fresh clone's `.env.example` ships the whole `## sepolia`
+block blank, so this step SKIPs out of the box until an operator
+deliberately fills it in.
+
+This gate — and every later sub-step that needs these values in the
+current shell (9c's balance check, 9d's deploy) — uses **one single
+mechanism**: source `packages/stylus/.env` into the shell once, then
+check the resulting environment. There is no separate file-grep check;
+what ends up in the shell environment after this `source` is the only
+thing that decides SKIP vs proceed, for this step and every step after it:
+
+```bash
+[ -f packages/stylus/.env ] && source packages/stylus/.env
 MISSING_KEYS=""
-for key in ACCOUNT_ADDRESS_SEPOLIA RPC_URL_SEPOLIA PRIVATE_KEY_SEPOLIA; do
-  env_key_present "$key" || MISSING_KEYS="$MISSING_KEYS $key"
-done
+[ -z "${ACCOUNT_ADDRESS_SEPOLIA:-}" ] && MISSING_KEYS="$MISSING_KEYS ACCOUNT_ADDRESS_SEPOLIA"
+[ -z "${RPC_URL_SEPOLIA:-}" ] && MISSING_KEYS="$MISSING_KEYS RPC_URL_SEPOLIA"
+[ -z "${PRIVATE_KEY_SEPOLIA:-}" ] && MISSING_KEYS="$MISSING_KEYS PRIVATE_KEY_SEPOLIA"
 ```
 
 Never print, echo, `cat`, log, or commit the private key. If you need to
@@ -768,19 +794,21 @@ show a variable is set, print its length, not its value. Never read the
 rest of `.env` back to the terminal — that file may hold real mainnet
 secrets in other blocks.
 
-- Any of the three missing/blank → **SKIPPED — Sepolia credentials not
-  set.** Print which key(s) are missing and point at the `## sepolia`
-  block in `packages/stylus/.env.example`. This is not a failure and does
-  not affect the Steps 1–7 verdict.
-- All three present → proceed to Step 9b.
+- Any of the three unset/blank in the shell after sourcing →
+  **SKIPPED — Sepolia credentials not set.** Print which key(s) are
+  missing and point at the `## sepolia` block in
+  `packages/stylus/.env.example`. This is not a failure and does not
+  affect the Steps 1–7 verdict.
+- All three present → proceed to Step 9c.
 
-### Step 9b — Balance gate
+### Step 9c — Balance gate
 
 Insufficient gas SKIPs, it does not hard-fail — funding is an operator
-action, not a code regression.
+action, not a code regression. Reuses `$RPC_URL_SEPOLIA` /
+`$ACCOUNT_ADDRESS_SEPOLIA` already in the shell from Step 9b's `source` —
+no second read of `.env`:
 
 ```bash
-source packages/stylus/.env
 BALANCE_WEI=$(cast balance --rpc-url "$RPC_URL_SEPOLIA" "$ACCOUNT_ADDRESS_SEPOLIA")
 ```
 
@@ -790,9 +818,11 @@ BALANCE_WEI=$(cast balance --rpc-url "$RPC_URL_SEPOLIA" "$ACCOUNT_ADDRESS_SEPOLI
   [Chainlink Faucet](https://faucets.chain.link/arbitrum-sepolia),
   [QuickNode Faucet](https://faucet.quicknode.com/arbitrum/sepolia),
   [Alchemy Faucet](https://sepoliafaucet.com/). Do not hard-fail the run.
-- `cast` errors (RPC unreachable) → **SKIPPED — Sepolia RPC unreachable**
-  (external/environmental, not a code regression).
-- `BALANCE_WEI` is nonzero → proceed to Step 9c. A nonzero-but-tiny balance
+- `cast` errors for a reason other than the tool being absent (already
+  ruled out by Step 9a) — e.g. `$RPC_URL_SEPOLIA` unreachable → **SKIPPED
+  — Sepolia RPC unreachable** (external/environmental, not a code
+  regression).
+- `BALANCE_WEI` is nonzero → proceed to Step 9d. A nonzero-but-tiny balance
   is not pre-screened further here — if it turns out too low to cover gas,
   `cargo stylus deploy` itself will fail with an out-of-funds error from
   the RPC; treat that specific failure mode the same as a zero balance
@@ -800,7 +830,7 @@ BALANCE_WEI=$(cast balance --rpc-url "$RPC_URL_SEPOLIA" "$ACCOUNT_ADDRESS_SEPOLI
   funding gap, not a code defect. Any other deploy failure (e.g. the
   contract itself reverting, a compile error) is a real **FAIL**.
 
-### Step 9c — Deploy
+### Step 9d — Deploy
 
 ```bash
 yarn deploy --network sepolia
@@ -809,7 +839,10 @@ yarn deploy --network sepolia
 This resolves `sepolia` to `arbitrumSepolia` (`packages/stylus/scripts/
 utils/network.ts`'s `ALIASES` map) and runs the same `cargo stylus deploy`
 → `export-abi` → `deployedContracts.ts` chain Step 4 runs locally, just
-against `RPC_URL_SEPOLIA` instead of the devnode. It also writes to
+against `RPC_URL_SEPOLIA` instead of the devnode. `yarn deploy` is a fresh
+process that reads `packages/stylus/.env` itself — it does not depend on
+Step 9b/9c's shell-local `source`, which exists only for this skill's own
+precondition checks. It also writes to
 `packages/stylus/deployments/421614_latest.json` (Sepolia's chain ID) —
 gitignored, safe to accumulate across re-runs, same as any other network's
 deployment history.
@@ -822,14 +855,15 @@ cast receipt <deployment-tx-hash> --rpc-url "$RPC_URL_SEPOLIA"
 
 must show `status  1 (success)`.
 
-- `yarn` itself missing, or the credentials/balance gates above already
-  caught the problem → already **SKIPPED**, this step is not reached.
+- `yarn` itself missing, or the tool/credentials/balance gates above
+  already caught the problem → already **SKIPPED**, this step is not
+  reached.
 - `cargo stylus deploy` exits non-zero for an out-of-funds reason → treat
-  as **SKIPPED** (see Step 9b). Any other non-zero exit, or exit 0 with a
+  as **SKIPPED** (see Step 9c). Any other non-zero exit, or exit 0 with a
   receipt `status` of `0` (reverted) → **FAIL**.
-- Exit 0 and receipt `status  1` → **(a)**, proceed to Step 9d.
+- Exit 0 and receipt `status  1` → **(a)**, proceed to Step 9e.
 
-### Step 9d — Read back on-chain state
+### Step 9e — Read back on-chain state
 
 Prove the deploy actually landed by reading real contract state back over
 the Sepolia RPC — not just trusting the CLI's own success message:
@@ -848,13 +882,13 @@ Assertion: `greeting()` returns the constructor default
   succeeded but the deployed contract doesn't behave as expected.
 - All three hold → **(a)**.
 
-### Step 9e — Cleanup (always, regardless of outcome)
+### Step 9f — Cleanup (always, regardless of outcome)
 
 `yarn deploy` writes the Sepolia entry into the tracked
 `packages/nextjs/contracts/deployedContracts.ts` the moment it runs,
-before Step 9d's assertions even execute — same file Step 4/Step 8 touch
+before Step 9e's assertions even execute — same file Step 4/Step 8 touch
 for the local devnode. Restore it so this skill's READ-ONLY contract holds
-for Sepolia too, regardless of whether Step 9c/9d passed or failed:
+for Sepolia too, regardless of whether Step 9d/9e passed or failed:
 
 ```bash
 git checkout -- packages/nextjs/contracts/deployedContracts.ts
@@ -872,11 +906,11 @@ Steps 1–8.
 
 Report exactly one of:
 
-- **SKIPPED** — with the specific reason (credentials absent, zero/
-  insufficient balance, RPC unreachable).
+- **SKIPPED** — with the specific reason (`cast` not installed,
+  credentials absent, zero/insufficient balance, RPC unreachable).
 - **PASS** — with the deployed contract address, the deploy tx hash and
   its `https://sepolia.arbiscan.io/tx/<hash>` link, and the raw read-back
-  output from Step 9d.
+  output from Step 9e.
 - **FAIL** — with the exact command and exact error output.
 
 A SKIPPED Step 9 must appear explicitly as SKIPPED in the run's final
@@ -925,10 +959,18 @@ report — never silently omitted, and never folded into an overall PASS.
   fold it into Steps 1–7's verdict.
 - Leaving `packages/nextjs/contracts/deployedContracts.ts` modified after
   Step 9. It gets written by `yarn deploy --network sepolia` itself,
-  before Step 9's own assertions run — restore it in Step 9e regardless
+  before Step 9's own assertions run — restore it in Step 9f regardless
   of whether Step 9 passed or failed.
-- Editing `packages/stylus/.env` to test Step 9's SKIP path. Unset the
-  three Sepolia vars in the current shell instead (`unset
-  RPC_URL_SEPOLIA PRIVATE_KEY_SEPOLIA ACCOUNT_ADDRESS_SEPOLIA`) — the
-  step reads them from the environment `dotenvConfig` populates, and
-  editing the file risks losing real credentials.
+- Editing `packages/stylus/.env` to test Step 9's SKIP path. Instead,
+  `source packages/stylus/.env` as Step 9b does, then `unset
+  ACCOUNT_ADDRESS_SEPOLIA RPC_URL_SEPOLIA PRIVATE_KEY_SEPOLIA` — unsetting
+  *before* sourcing proves nothing, since the `source` would just
+  repopulate them from the file a line later. Unsetting *after* sourcing
+  reproduces the exact shell state a blank `## sepolia` block in `.env`
+  would leave behind, without ever touching the file (which may hold
+  real credentials).
+- Assuming Step 9b's gate reads `.env` by grepping the file (the way Step
+  1b's devnet gate does). It doesn't: Step 9b sources the file into the
+  shell and checks the resulting environment variables directly — one
+  mechanism, reused as-is by 9c and 9d. Don't reintroduce a second,
+  file-based check that could disagree with it.
