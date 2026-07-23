@@ -7,15 +7,12 @@ import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { AngularBorder } from "~~/components/AngularBorder";
 import { Faucet } from "~~/components/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
-import { useGlobalState } from "~~/services/store/store";
 import { arbitrumNitro } from "~~/utils/scaffold-stylus/supportedChains";
-import EthIcon from "~~/icons/EthIcon";
 
 /**
  * Site footer
  */
 export const Footer = () => {
-  const nativeCurrencyPrice = useGlobalState(state => state.nativeCurrency.price);
   const { targetNetwork } = useTargetNetwork();
   const { resolvedTheme } = useTheme();
   const isLocalNetwork = targetNetwork.id === arbitrumNitro.id;
@@ -34,38 +31,6 @@ export const Footer = () => {
       <div>
         <div className="fixed flex justify-between items-center w-full z-10 p-4 bottom-0 left-0 pointer-events-none">
           <div className="flex flex-col md:flex-row gap-2 pointer-events-auto">
-            {nativeCurrencyPrice > 0 && (
-              <div className="relative">
-                <AngularBorder width={140} height={40} color="rgba(227, 6, 110, 1)" />
-                <div
-                  className="flex items-center gap-2 px-6 cursor-auto rounded-lg"
-                  style={{
-                    width: "140px",
-                    height: "40px",
-                    display: "flex",
-                    alignItems: "flex-start",
-                    paddingTop: "6px",
-                    position: "relative",
-                    zIndex: 1,
-                  }}
-                >
-                  <EthIcon width={20} height={20} />
-                  <span
-                    style={{
-                      fontFamily: "Orbitron, sans-serif",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {nativeCurrencyPrice.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
             {isLocalNetwork && (
               <>
                 <Faucet />

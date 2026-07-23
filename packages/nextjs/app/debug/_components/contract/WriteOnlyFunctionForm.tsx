@@ -15,6 +15,7 @@ import {
 } from "~~/app/debug/_components/contract";
 import { IntegerInput } from "~~/components/scaffold-eth";
 import { useTransactor } from "~~/hooks/scaffold-eth";
+import { applyGasFeeMultiplier } from "~~/hooks/scaffold-eth/useScaffoldWriteContract";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 import { AllowedChainIds } from "~~/utils/scaffold-stylus";
 import { simulateContractWriteAndNotifyError } from "~~/utils/scaffold-eth/contract";
@@ -55,13 +56,17 @@ export const WriteOnlyFunctionForm = ({
           args: getParsedContractFunctionArgs(form),
           value: BigInt(txValue),
         };
+        const bufferedWriteContractObj = await applyGasFeeMultiplier(
+          writeContractObj as any,
+          targetNetwork.id as AllowedChainIds,
+        );
         await simulateContractWriteAndNotifyError({
           wagmiConfig,
-          writeContractParams: writeContractObj,
+          writeContractParams: bufferedWriteContractObj,
           chainId: targetNetwork.id as AllowedChainIds,
         });
 
-        const makeWriteWithParams = () => writeContractAsync(writeContractObj);
+        const makeWriteWithParams = () => writeContractAsync(bufferedWriteContractObj as typeof writeContractObj);
         await writeTxn(makeWriteWithParams);
         onChange();
       } catch (e: any) {
@@ -98,7 +103,10 @@ export const WriteOnlyFunctionForm = ({
 
   return (
     <div className="py-5 space-y-3 first:pt-0 last:pb-1">
-      <div className={`flex gap-3 ${zeroInputs ? "flex-row justify-between items-center" : "flex-col"}`}>
+      <div
+        className={`flex gap-3 ${zeroInputs ? "flex-row justify-between items-center" : "flex-col"}`}
+        data-testid={`write-function-form-${abiFunction.name}`}
+      >
         <p className="font-medium my-0 break-words function-name">
           {abiFunction.name}
           <InheritanceTooltip inheritedFrom={inheritedFrom} />
@@ -132,7 +140,12 @@ export const WriteOnlyFunctionForm = ({
               }`}
               data-tip={`${writeDisabled && "Wallet not connected or in the wrong network"}`}
             >
-              <button className="send-button" disabled={writeDisabled || isPending} onClick={handleWrite}>
+              <button
+                className="send-button"
+                disabled={writeDisabled || isPending}
+                onClick={handleWrite}
+                data-testid="write-function-submit"
+              >
                 {isPending && <span className="loading loading-spinner loading-xs"></span>}
                 Send
               </button>

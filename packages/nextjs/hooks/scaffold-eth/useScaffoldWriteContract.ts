@@ -39,8 +39,12 @@ type ScaffoldWriteContractReturnType<TContractName extends ContractName> = Omit<
 /**
  * Optionally bump maxFeePerGas on the write args to protect against base fee spikes.
  * Since maxFeePerGas is a ceiling (not the actual fee), a generous multiplier is safe.
+ *
+ * Exported so other write paths (e.g. the Debug page's WriteOnlyFunctionForm,
+ * which calls wagmi's useWriteContract() directly instead of going through
+ * this hook) can apply the same protection instead of bypassing it.
  */
-async function applyGasFeeMultiplier(
+export async function applyGasFeeMultiplier(
   args: WriteContractVariables<Abi, string, any[], Config, number>,
   chainId: number,
 ): Promise<WriteContractVariables<Abi, string, any[], Config, number>> {
