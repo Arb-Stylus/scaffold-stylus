@@ -43,8 +43,9 @@ jobs:
           PKG_VERSION=$(node -p "require('./package.json').version")
           echo "About to publish ${PKG_NAME}@${PKG_VERSION} (ref=${{ inputs.ref }}, dry_run=${{ inputs.dry_run }})"
 
-      - name: Install dependencies (npm ci)
-        run: npm ci
+      # npm install, not npm ci: create-stylus is a yarn@3 repo with no package-lock.json.
+      - name: Install dependencies (npm install)
+        run: npm install
 
       - name: Build
         run: npm run build
