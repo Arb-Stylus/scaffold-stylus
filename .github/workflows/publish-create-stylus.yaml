@@ -1,0 +1,81 @@
+name: Publish create-stylus (dry-run capable)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "git ref of Arb-Stylus/create-stylus to publish from"
+        type: string
+        default: main
+      dry_run:
+        description: "Run npm publish --dry-run instead of a real publish"
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout create-stylus
+        uses: actions/checkout@v4
+        with:
+          repository: Arb-Stylus/create-stylus
+          ref: ${{ inputs.ref }}
+          token: ${{ secrets.ORG_GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org/"
+
+      - name: Auth preflight (npm whoami)
+        run: |
+          WHOAMI=$(npm whoami)
+          echo "Authenticated to npm registry as: ${WHOAMI}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Echo package to be published
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "About to publish ${PKG_NAME}@${PKG_VERSION} (ref=${{ inputs.ref }}, dry_run=${{ inputs.dry_run }})"
+
+      # npm install, not npm ci: create-stylus is a yarn@3 repo with no package-lock.json.
+      - name: Install dependencies (npm install)
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish (dry-run)
+        if: ${{ inputs.dry_run }}
+        run: npm publish --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish (real)
+        if: ${{ !inputs.dry_run }}
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          slack-message: "✅ Publish create-stylus ${{ inputs.dry_run && '(DRY RUN)' || '' }} Successful!\nRef: ${{ inputs.ref }}\nDry run: ${{ inputs.dry_run }}\nBuild Status: ${{ job.status }}\nTriggered by: ${{ github.actor }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          slack-message: "❌ Publish create-stylus ${{ inputs.dry_run && '(DRY RUN)' || '' }} Failed!\nRef: ${{ inputs.ref }}\nDry run: ${{ inputs.dry_run }}\nBuild Status: ${{ job.status }}\nTriggered by: ${{ github.actor }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
