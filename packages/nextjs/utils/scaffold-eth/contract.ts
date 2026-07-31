@@ -26,8 +26,15 @@ import {
   keccak256,
   toHex,
 } from "viem";
+import { estimateContractGas } from "viem/actions";
 import { Config, UseReadContractParameters, UseWatchContractEventParameters, UseWriteContractParameters } from "wagmi";
-import { WriteContractParameters, WriteContractReturnType, simulateContract } from "wagmi/actions";
+import {
+  WriteContractParameters,
+  WriteContractReturnType,
+  getClient,
+  getConnectorClient,
+  simulateContract,
+} from "wagmi/actions";
 import { WriteContractVariables } from "wagmi/query";
 import deployedContractsData from "~~/contracts/deployedContracts";
 import externalContractsData from "~~/contracts/externalContracts";
@@ -414,7 +421,18 @@ export const simulateContractWriteAndNotifyError = async ({
   chainId: AllowedChainIds;
 }) => {
   try {
-    await simulateContract(wagmiConfig, params);
+    // Some RPC nodes default an omitted `gas` field on eth_call to an oversized value (e.g. 50,000,000)
+    // and check the sender's balance against that inflated hypothetical cost, producing a false
+    // "insufficient funds" error even when the real gas cost is trivial. Estimating gas first and
+    // passing it through avoids that RPC-side default. The estimate must run as the connected
+    // account (mirroring what wagmi's own simulateContract resolves internally), since owner-gated
+    // functions revert when estimated from an unset/zero account.
+    const account =
+      params.account ??
+      (await getConnectorClient(wagmiConfig, { assertChainId: false, chainId: chainId as any })).account;
+    const client = getClient(wagmiConfig, { chainId: chainId as any })!;
+    const gas = await estimateContractGas(client, { ...params, account } as any);
+    await simulateContract(wagmiConfig, { ...params, gas });
   } catch (error) {
     const parsedError = getParsedErrorWithAllAbis(error, chainId);
 
