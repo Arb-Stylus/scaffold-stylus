@@ -51,7 +51,7 @@ jobs:
         id: version
         run: |
           cd source_repo
-          commit_message=$(git log -1 --pretty=%B)
+          commit_message=$(git log -1 --pretty=%s)
           if [[ "$commit_message" == *"[major]"* ]]; then
             echo "type=major" >> "$GITHUB_ENV"
           elif [[ "$commit_message" == *"[minor]"* ]]; then
@@ -111,6 +111,17 @@ jobs:
           git add .
           git commit -m "Processed $gitignore_file into $mjs_file"
 
+      - name: Align destination version with npm registry
+        run: |
+          cd destination_repo
+          PKG=$(node -p "require('./package.json').name")
+          HIGHEST=$(npm view "$PKG" versions --json | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[^"]*' | sort -V | tail -1)
+          LOCAL=$(node -p "require('./package.json').version")
+          BASE=$(printf '%s\n%s\n' "$HIGHEST" "$LOCAL" | sort -V | tail -1)
+          echo "highest_published=$HIGHEST local=$LOCAL base=$BASE"
+          npm version "$BASE" --no-git-tag-version --allow-same-version
+          echo "HIGHEST=$HIGHEST" >> "$GITHUB_ENV"
+
       - name: Bump version in Destination Repository
         id: bump-version-destination
         run: |
@@ -118,6 +129,26 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           new_version=$(npm version ${{ env.type }} -m "chore(release): %s [skip ci]")
+          NEW=$(node -p "require('./package.json').version")
+          node -e '
+            const [a, b] = process.argv.slice(1);
+            const parse = v => { const [core, ...r] = v.split("-"); return { n: core.split(".").map(Number), p: r.join("-") }; };
+            const pa = parse(a), pb = parse(b);
+            for (let i = 0; i < 3; i++) { if (pa.n[i] !== pb.n[i]) process.exit(pa.n[i] > pb.n[i] ? 0 : 1); }
+            if (pa.p === pb.p) process.exit(0);
+            if (!pa.p) process.exit(0);
+            if (!pb.p) process.exit(1);
+            const ai = pa.p.split("."), bi = pb.p.split(".");
+            for (let i = 0; i < Math.max(ai.length, bi.length); i++) {
+              if (ai[i] === undefined) process.exit(0);
+              if (bi[i] === undefined) process.exit(1);
+              const an = /^[0-9]+$/.test(ai[i]), bn = /^[0-9]+$/.test(bi[i]);
+              if (an && bn) { const d = Number(ai[i]) - Number(bi[i]); if (d !== 0) process.exit(d > 0 ? 0 : 1); }
+              else if (an !== bn) process.exit(an ? 1 : 0);
+              else if (ai[i] !== bi[i]) process.exit(ai[i] < bi[i] ? 1 : 0);
+            }
+            process.exit(0);
+          ' "$NEW" "$HIGHEST" || { echo "::error::Computed $NEW is not above highest published $HIGHEST"; exit 1; }
           git push origin main --follow-tags
 
       - name: Set up Node.js
