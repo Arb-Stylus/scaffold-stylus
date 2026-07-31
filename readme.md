@@ -2,7 +2,7 @@
 
 <h4 align="center">
   <a href="https://arb-stylus.github.io/scaffold-stylus-docs/">Documentation</a> |
-  <a href="https://www.scaffoldstylus.com/">Website</a>
+  <a href="https://scaffoldstylus.quantum3labs.com/">Website</a>
 </h4>
 
 🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Arbitrum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
@@ -295,7 +295,7 @@ Visit our [Troubleshooting section](https://arb-stylus.github.io/scaffold-stylus
 
 Visit our [docs](https://arb-stylus.github.io/scaffold-stylus-docs/) to learn how to start building with Scaffold-Stylus.
 
-To learn more about its features, check out our [website](https://www.scaffoldstylus.com/).
+To learn more about its features, check out our [website](https://scaffoldstylus.quantum3labs.com/).
 
 ## Contributing to Scaffold-Stylus
 
