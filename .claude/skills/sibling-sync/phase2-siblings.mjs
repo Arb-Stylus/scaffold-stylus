@@ -1,9 +1,9 @@
 export const meta = {
   name: 'sibling-sync-phase2',
   description: 'Phase 2 — verify and update siblings after the main scaffold repo has been updated and merged',
-  whenToUse: 'Only after phase 1 (update-check) is green AND its PRs are merged and released. Aborts if the base is not ready.',
+  whenToUse: 'Only after phase 1 (update-check) is green AND its PRs are merged to main. Aborts if phase-1 is not merged. npm publish state is reported as a create-stylus finding, not a gate.',
   phases: [
-    { title: 'Gate', detail: 'confirm the main repo is merged and released — abort if not' },
+    { title: 'Gate', detail: 'confirm phase-1 changes are merged to main — abort if not; publish state is reported, not gated' },
     { title: 'Verify', detail: 'parallel: create-stylus propagation, extension overlays, docs accuracy' },
     { title: 'Report', detail: 'per-sibling plan, propagation failures first' },
   ],
@@ -79,19 +79,21 @@ const RESULT = {
 phase('Gate')
 
 const GATE = {
-  type: 'object', additionalProperties: false, required: ['ready', 'reason', 'mainVersion', 'npmVersion'],
+  type: 'object', additionalProperties: false, required: ['ready', 'reason', 'mainVersion', 'npmVersion', 'releasePublished'],
   properties: {
     ready: { type: 'boolean' },
     reason: { type: 'string', description: 'If not ready, exactly what is missing' },
     mainVersion: { type: 'string' },
     npmVersion: { type: 'string' },
+    releasePublished: { type: 'boolean', description: 'true only if create-stylus was actually published to npm at the main version (npm dist-tag == main package.json version)' },
   },
 }
 
 const gate = await agent(
   `${PREAMBLE}
 
-Determine whether PHASE 1 IS DONE, so phase 2 can safely run. Be strict — a false "ready" wastes the whole run.
+Determine whether PHASE 1 IS MERGED TO MAIN, so phase 2 can safely run. Be strict — a false "ready" wastes the
+whole run. Readiness is about git state ONLY — npm publish success is a SEPARATE, non-gating finding (see below).
 
 Check and report ACTUAL output:
 1. git status -sb on the main repo — is main clean and in sync with origin/main?
@@ -103,11 +105,14 @@ Check and report ACTUAL output:
 6. gh run list --workflow release-create-stylus.yaml --limit 3 — did the release pipeline run and SUCCEED after
    the most recent merge? Read the conclusion, do not assume.
 
-ready = true ONLY if: main is clean and synced, no phase-1 PR is still open, the changes are visibly on main,
-and the release pipeline succeeded after them.
+ready = true ONLY if: main is clean and synced with origin/main, no phase-1 PR is still open, and the phase-1
+changes are visibly on origin/main. Do NOT factor npm publish success into ready — a merged-but-unpublished
+release is still a ready base for phase 2 (create-stylus-extensions and docs do not depend on npm at all).
 
-If versions disagree between the repo and npm, that alone is NOT necessarily a blocker (a release may still be
-in flight) — but say so clearly in the reason.
+releasePublished = true ONLY if 'npm view create-stylus version' equals the main repo's package.json version
+AND the release-create-stylus.yaml run after the last merge concluded success. Otherwise releasePublished =
+false — explain exactly why in the reason (e.g. "npm still shows 0.1.17 vs main's 0.2.0, release run concluded
+failure/E404").
 ${HONESTY}`,
   { label: 'gate:phase1-ready', phase: 'Gate', schema: GATE }
 )
@@ -122,7 +127,7 @@ if (!gate || !gate.ready) {
   }
 }
 
-log(`Gate passed — main ${gate.mainVersion}, npm ${gate.npmVersion}. Proceeding to siblings.`)
+log(`Gate passed — main ${gate.mainVersion}, npm ${gate.npmVersion}, releasePublished=${gate.releasePublished}. Proceeding to siblings.`)
 
 // ---------------------------------------------------------------------------
 // Each sibling receives changes by a DIFFERENT mechanism, so each gets a
@@ -140,6 +145,13 @@ ${MODE_DISCOVERY}
 Sibling: create-stylus. It receives changes AUTOMATICALLY — merging to the main repo's main branch rsyncs the
 repo into create-stylus/templates/base and then runs 'npm publish'. Your job is to verify the propagation
 actually happened and carried the right content, NOT merely that the workflow reported success.
+
+GATE CONTEXT: releasePublished=${gate.releasePublished} (main repo version ${gate.mainVersion}, npm version
+${gate.npmVersion}). If releasePublished is false, you MUST report a BLOCKER finding titled
+"create-stylus@${gate.mainVersion} not on npm — publish failed, users still get the old version", with the
+gate's reason as evidence and 'npx create-stylus' currently resolving to an older version as reaches_users.
+Report this in ADDITION to, not instead of, the git-level propagation checks below — a repo can be perfectly
+rsynced and still unpublished.
 
 1. PROPAGATION IS REAL. Pick several files that phase 1 changed in the main repo and diff them against the
    same paths under create-stylus templates/base (use the local clone if present, otherwise gh api to read the
@@ -237,7 +249,8 @@ if (results.length < SIBLINGS.length) {
 phase('Report')
 
 const report = await agent(
-  `Synthesize a phase-2 sibling report. Base state: main repo ${gate.mainVersion}, npm ${gate.npmVersion}.
+  `Synthesize a phase-2 sibling report. Base state: main repo ${gate.mainVersion}, npm ${gate.npmVersion},
+releasePublished=${gate.releasePublished} (${gate.reason}).
 
 ${JSON.stringify(results, null, 2)}
 
@@ -253,8 +266,11 @@ Produce a decision-ready report:
    - create-stylus reaches users on the next npm publish
    - docs mislead users but do not break builds
 5. Any leaked maintainer file in the published npm package is a BLOCKER regardless of other severity.
-6. List explicitly what was verified CLEAN and what was UNCHECKED. Never let an unchecked sibling read as passing.
-7. For each action, say whether it is a CODE change (needs to be delegated as a separate task) or an OPS action.
+6. If releasePublished is false, the create-stylus verdict MUST reflect the npm-publish BLOCKER finding — do not
+   let it read as in-sync just because the git-level rsync is clean. extensions and docs verdicts are
+   INDEPENDENT of releasePublished — they do not depend on npm at all, so do not downgrade them for this.
+7. List explicitly what was verified CLEAN and what was UNCHECKED. Never let an unchecked sibling read as passing.
+8. For each action, say whether it is a CODE change (needs to be delegated as a separate task) or an OPS action.
 
 Be blunt. If the siblings are genuinely in sync, say so plainly and do not manufacture work.`,
   { label: 'synthesize', phase: 'Report', schema: RESULT }
