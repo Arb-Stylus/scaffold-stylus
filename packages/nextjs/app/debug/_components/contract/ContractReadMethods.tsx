@@ -11,9 +11,9 @@ export const ContractReadMethods = ({ deployedContractData }: { deployedContract
     ((deployedContractData.abi || []) as Abi).filter(part => part.type === "function") as AbiFunction[]
   )
     .filter(fn => {
-      const isQueryableWithParams =
-        (fn.stateMutability === "view" || fn.stateMutability === "pure") && fn.inputs.length > 0;
-      return isQueryableWithParams;
+      const isQueryable =
+        (fn.stateMutability === "view" || fn.stateMutability === "pure");
+      return isQueryable;
     })
     .map(fn => {
       return {
